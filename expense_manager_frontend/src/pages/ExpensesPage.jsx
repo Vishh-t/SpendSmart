@@ -9,6 +9,7 @@ import ConfirmModal from "../components/modals/ConfirmModal.jsx";
 import EditExpenseModal from "../components/modals/EditExpenseModal.jsx";
 import CategoryExpensesModal from "../components/modals/CategoryExpensesModal.jsx";
 import { useTheme } from "../context/ThemeContext.jsx";
+import { useData } from "../context/DataContext.jsx";
 
 const ITEMS_PER_PAGE = 5;
 
@@ -28,14 +29,13 @@ function ExpensesPage() {
 
     const [confirmExpenseId,   setConfirmExpenseId]   = useState(null);
     const [editExpense,        setEditExpense]        = useState(null);
-    // Category modal — stores { id, name } of the clicked category badge
     const [categoryModal,      setCategoryModal]      = useState(null);
     const [dropdownOpen,       setDropdownOpen]       = useState(false);
     const dropdownRef = useRef(null);
 
     const { isDark } = useTheme();
+    const { refreshKey, triggerRefresh } = useData();
 
-    // Glow color for category badges — green in dark mode, forest green in light mode
     const badgeGlowColor = isDark
         ? "rgba(78, 222, 163, 0.55)"
         : "rgba(16, 185, 129, 0.45)";
@@ -57,7 +57,7 @@ function ExpensesPage() {
         async function fetchInitialData() {
             try {
                 const [expensesData, categoriesData, summaryData] = await Promise.all([
-                    getSortedExpenses("expenseTimestamp", "desc"),
+                    getSortedExpenses(sortBy, order),
                     getAllCategories(),
                     getFinancialSummary()
                 ]);
@@ -72,7 +72,7 @@ function ExpensesPage() {
             }
         }
         fetchInitialData().catch(console.error);
-    }, []);
+    }, [refreshKey]);
 
     async function handleCategoryChange(categoryId) {
         setSelectedCategory(categoryId);
@@ -112,20 +112,16 @@ function ExpensesPage() {
     async function handleDelete(expenseId) {
         try {
             await deleteExpense(expenseId);
-            setExpenses(prev => prev.filter(e => e.expenseId !== expenseId));
             setConfirmExpenseId(null);
+            triggerRefresh();
         } catch (err) {
             console.error("❌ Delete error:", err.response?.status, err.response?.data);
         }
     }
 
     async function handleEditSuccess() {
-        try {
-            const data = await getSortedExpenses(sortBy, order);
-            setExpenses(data);
-        } catch (err) {
-            console.error("❌ Refresh after edit error:", err);
-        }
+        setEditExpense(null);
+        triggerRefresh();
     }
 
     const totalPages        = Math.ceil(filteredExpenses.length / ITEMS_PER_PAGE);
@@ -244,11 +240,6 @@ function ExpensesPage() {
                                     <td className="p-5 text-text-secondary text-xs">{formatDateUpper(expense.expenseTimestamp)}</td>
                                     <td className="p-5 text-text-primary text-sm">{expense.description || "—"}</td>
                                     <td className="p-5">
-                                        {/*
-                                            Category badge — clickable, glows on hover.
-                                            Clicking opens CategoryExpensesModal showing all
-                                            expenses under that category.
-                                        */}
                                         <button
                                             onClick={() => setCategoryModal({
                                                 id: expense.category?.categoryId,
@@ -261,7 +252,6 @@ function ExpensesPage() {
                                                 border: "1px solid transparent"
                                             }}
                                             onMouseEnter={e => {
-                                                // Glow effect — green in dark, forest green in light
                                                 e.currentTarget.style.boxShadow = `0 0 12px ${badgeGlowColor}`;
                                                 e.currentTarget.style.border = `1px solid ${isDark ? "rgba(78,222,163,0.35)" : "rgba(16,185,129,0.35)"}`;
                                                 e.currentTarget.style.color = "var(--color-primary)";
@@ -346,7 +336,6 @@ function ExpensesPage() {
                     onSuccess={handleEditSuccess}
                 />
             )}
-            {/* Category expenses modal — shows all expenses under clicked category */}
             {categoryModal && (
                 <CategoryExpensesModal
                     category={categoryModal}

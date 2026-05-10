@@ -125,11 +125,6 @@ public class ExpenseService
         Category category = categoryRepo.findById(categoryId).orElseThrow(() -> new NotFoundException("Category not found"));
         List<Expense> requiredExpense = repo.findAllByUserAndCategory(user, category);
 
-        if (requiredExpense.isEmpty())
-        {
-            throw new NotFoundException("No Expense found");
-        }
-
         return requiredExpense;
 
     }

@@ -3,12 +3,19 @@ import { Plus, Moon, Sun } from "lucide-react";
 import SideBar from "./SideBar.jsx";
 import AddExpenseModal from "../modals/AddExpenseModal.jsx";
 import { useTheme } from "../../context/ThemeContext.jsx";
+import { useData } from "../../context/DataContext.jsx";
 
 function Layout({ children }) {
 
     const [showAddExpense,   setShowAddExpense]   = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const { isDark, toggleTheme } = useTheme();
+    const { triggerRefresh } = useData();
+
+    function handleExpenseSuccess() {
+        setShowAddExpense(false);
+        triggerRefresh();
+    }
 
     return (
         <div className="flex min-h-screen bg-surface">
@@ -124,7 +131,7 @@ function Layout({ children }) {
             {showAddExpense && (
                 <AddExpenseModal
                     onClose={() => setShowAddExpense(false)}
-                    onSuccess={() => setShowAddExpense(false)}
+                    onSuccess={handleExpenseSuccess}
                 />
             )}
 

@@ -7,6 +7,7 @@ import StatCard from "../components/dashboard/StatCard.jsx";
 import SpendingChart from "../components/dashboard/SpendingChart.jsx";
 import CategoryDonut from "../components/dashboard/CategoryDonut.jsx";
 import RecentExpenses from "../components/dashboard/RecentExpenses.jsx";
+import { useData } from "../context/DataContext.jsx";
 
 function DashBoard() {
     const [financialSummary, setFinancialSummary] = useState(null);
@@ -15,6 +16,8 @@ function DashBoard() {
     const [recentExpenses,   setRecentExpenses]   = useState([]);
     const [isLoading,        setIsLoading]        = useState(true);
     const [error,            setError]            = useState(null);
+
+    const { refreshKey } = useData();
 
     useEffect(() => {
         async function fetchDashboardData() {
@@ -39,7 +42,7 @@ function DashBoard() {
             }
         }
         fetchDashboardData().catch(console.error);
-    }, []);
+    }, [refreshKey]);
 
     if (isLoading) return <LoadingState />;
     if (error)     return <ErrorState message={error} />;

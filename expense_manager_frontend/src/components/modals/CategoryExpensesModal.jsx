@@ -17,7 +17,7 @@ function CategoryExpensesModal({ category, onClose }) {
                 setExpenses(data);
             } catch (err) {
                 console.error("❌ Category expenses error:", err.response?.status, err.response?.data);
-                setError("No expenses found for this category.");
+                setError("Failed to load expenses.");
             } finally {
                 setIsLoading(false);
             }
@@ -54,7 +54,9 @@ function CategoryExpensesModal({ category, onClose }) {
                 {isLoading ? (
                     <p className="text-text-secondary text-sm text-center py-8">Loading...</p>
                 ) : error ? (
-                    <p className="text-text-secondary text-sm text-center py-8">{error}</p>
+                    <p className="text-error text-sm text-center py-8">{error}</p>
+                ) : expenses.length === 0 ? (
+                    <p className="text-text-secondary text-sm text-center py-8">No expenses in this category yet.</p>
                 ) : (
                     <table className="w-full">
                         <thead>
