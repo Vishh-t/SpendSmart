@@ -1,0 +1,121 @@
+@import "tailwindcss";
+
+/* ─── Dark Theme (default) ──────────────────────────────────────────────── */
+@theme {
+    --color-surface:          #0b1326;
+    --color-surface-low:      #131b2e;
+    --color-surface-high:     #2d3449;
+    --color-surface-bright:   #31394d;
+    --color-sidebar:          #131b2e;
+    --color-primary:          #4edea3;
+    --color-primary-dark:     #10b981;
+    --color-error:            #ef4444;
+    --color-text-primary:     #ffffff;
+    --color-text-secondary:   #8892a4;
+
+    --raw-modal-bg:           45, 52, 73;
+    --raw-input-bg:           49, 57, 77;
+    --raw-overlay-bg:         11, 19, 38;
+    --raw-dropdown-bg:        19, 27, 46;
+    --raw-card-bg:            26, 36, 56;
+}
+
+/* ─── Light Theme — Rich Forest ─────────────────────────────────────────── */
+.light {
+    --color-surface:          #F4F7F5;
+    --color-surface-low:      #E8EDE9;
+    --color-surface-high:     #FFFFFF;
+    --color-surface-bright:   #ECF3EE;
+    --color-sidebar:          #006C49;
+    --color-primary:          #10B981;
+    --color-primary-dark:     #059669;
+    --color-error:            #ef4444;
+    --color-text-primary:     #0D1F17;
+    --color-text-secondary:   #4A6358;
+
+    --raw-modal-bg:           255, 255, 255;
+    --raw-input-bg:           232, 237, 233;
+    --raw-overlay-bg:         13, 31, 23;
+    --raw-dropdown-bg:        255, 255, 255;
+    --raw-card-bg:            236, 243, 238;
+}
+
+/* ─── Page background — theme aware ─────────────────────────────────────── */
+html, body {
+    background-color: #0b1326;
+    overflow-x: hidden;
+}
+html.light, html.light body {
+    background-color: #F4F7F5;
+}
+
+/* ─── Hide number input spinners ────────────────────────────────────────── */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+input[type="number"] { -moz-appearance: textfield; }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   SCROLLBAR — DARK MODE (default)
+   ════════════════════════════════════════════════════════════════════════════ */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(78, 222, 163, 0.32) #131b2e;
+}
+::-webkit-scrollbar              { width: 5px; height: 5px; }
+::-webkit-scrollbar-track        { background: #131b2e; border-radius: 999px; }
+::-webkit-scrollbar-track-piece  { background: #131b2e; }
+::-webkit-scrollbar-corner       { background: #131b2e; }
+::-webkit-scrollbar-thumb        { background: rgba(78, 222, 163, 0.32); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover  { background: rgba(78, 222, 163, 0.55); }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   SCROLLBAR — LIGHT MODE
+   Target html.light so specificity beats the dark rules above
+   ════════════════════════════════════════════════════════════════════════════ */
+html.light * {
+    scrollbar-color: rgba(16, 185, 129, 0.45) #E8EDE9 !important;
+}
+html.light ::-webkit-scrollbar-track       { background: #E8EDE9 !important; border-radius: 999px; }
+html.light ::-webkit-scrollbar-track-piece { background: #E8EDE9 !important; }
+html.light ::-webkit-scrollbar-corner      { background: #E8EDE9 !important; }
+html.light ::-webkit-scrollbar-thumb       { background: rgba(16, 185, 129, 0.45) !important; border-radius: 999px; }
+html.light ::-webkit-scrollbar-thumb:hover { background: rgba(16, 185, 129, 0.65) !important; }
+
+/* ─── Heatmap scroll container ───────────────────────────────────────────── */
+.heatmap-scroll {
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+/* ─── Sidebar always uses its own color token regardless of theme ─────── */
+.sidebar-bg { background-color: var(--color-sidebar) !important; }
+
+/* ─── Sidebar text helpers (sidebar is always dark regardless of theme) ── */
+.light .sidebar-text-secondary { color: rgba(255,255,255,0.60) !important; }
+.light .sidebar-text-primary   { color: rgba(255,255,255,0.92) !important; }
+.light .sidebar-active         { background-color: rgba(255,255,255,0.15) !important; color: #6EF0B8 !important; }
+.light .sidebar-hover:hover    { background-color: rgba(255,255,255,0.10) !important; color: rgba(255,255,255,0.92) !important; }
+
+/* ─── Light mode — card ambient shadow ──────────────────────────────────── */
+.light .bg-surface-high {
+    box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.04);
+}
+
+/* ─── Light mode — table row divider softening ──────────────────────────── */
+.light .border-surface-bright {
+    border-color: #DCE8DE !important;
+}
+
+/* ─── Button hover glows ────────────────────────────────────────────────── */
+.btn-glow-primary:hover {
+    box-shadow: 0 0 18px rgba(78, 222, 163, 0.35);
+}
+.light .btn-glow-primary:hover {
+    box-shadow: 0 0 18px rgba(16, 185, 129, 0.30);
+}
+.btn-glow-error:hover {
+    box-shadow: 0 0 14px rgba(239, 68, 68, 0.30);
+}
