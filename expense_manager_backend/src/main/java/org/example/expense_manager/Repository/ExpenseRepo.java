@@ -7,6 +7,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -22,4 +23,8 @@ public interface ExpenseRepo extends JpaRepository<Expense, Integer>
     List<Expense> findAllByUserAndCategory(User user, Category category);
 
     List<Expense> findAllByUserAndExpenseTimestampBetween(User user, LocalDateTime start, LocalDateTime end);
+
+    boolean existsByUserAndAmountAndDescriptionAndExpenseTimestampBetween(
+            User user, BigDecimal amount, String description, LocalDateTime start, LocalDateTime end
+    );
 }
