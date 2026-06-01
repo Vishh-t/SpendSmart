@@ -8,7 +8,9 @@ import org.apache.pdfbox.text.PDFTextStripper;
 import org.example.expense_manager.DTO.ServiceDTOs.ParsedTransactionDTO;
 import org.example.expense_manager.Entity.Category;
 import org.example.expense_manager.Entity.User;
+import org.example.expense_manager.Entity.UserCategoryMapping;
 import org.example.expense_manager.Exceptions.AppException;
+import org.example.expense_manager.Exceptions.NotFoundException;
 import org.example.expense_manager.Repository.CategoryRepo;
 import org.example.expense_manager.Repository.ExpenseRepo;
 import org.example.expense_manager.Repository.UserCategoryMappingRepo;
@@ -269,7 +271,6 @@ public class ImportService
         return rawVendor.toLowerCase().replaceAll("\\b(pvt|ltd|private|limited|india|payment|services|enterprise|enterprises)\\b", "").replaceAll("\\s+", " ").trim();
     }
 
-
     private boolean isDuplicate(User user, BigDecimal amount, String description, LocalDate date)
     {
 
@@ -361,7 +362,7 @@ public class ImportService
                 String rawDate = transaction.path("date").textValue();
                 LocalDate date = LocalDate.parse(rawDate);
 
-                String keyword = transaction.path("vendor").textValue();
+                String keyword = normalizeKeyword(transaction.path("vendor").textValue());
 
                 ParsedTransactionDTO result = new ParsedTransactionDTO();
                 result.setDescription(description);
@@ -379,5 +380,65 @@ public class ImportService
             throw new AppException("Failed to parse Gemini response");
         }
 
+    }
+
+    private List<ParsedTransactionDTO> applyUserMappings(User user, List<ParsedTransactionDTO> transactions)
+    {
+        List<UserCategoryMapping> mappings = userCategoryMappingRepo.findAllByUser(user);
+
+        HashMap<String, Integer> map = new HashMap<>();
+
+        for (UserCategoryMapping mapping : mappings)
+        {
+            map.put(mapping.getKeyword(), mapping.getCategory().getCategoryId());
+        }
+
+        for (var transaction : transactions)
+        {
+            if (map.containsKey(transaction.getKeyword()))
+            {
+                transaction.setCategoryId(map.get(transaction.getKeyword()));
+
+            }
+        }
+        return transactions;
+    }
+
+    public List<ParsedTransactionDTO> parseStatement(User user, MultipartFile file, boolean includeCredits)
+    {
+        String text = extractTextFromPdf(file);
+        String strippedText = stripSensitiveData(text);
+
+        List<Category> categories = categoryRepo.findAll();
+
+        String rawStatements = callGemini(categories, strippedText, includeCredits);
+
+        List<ParsedTransactionDTO> statements = parseGeminiResponse(rawStatements);
+
+        List<ParsedTransactionDTO> parsedStatements = applyUserMappings(user, statements);
+
+        for (var trans : parsedStatements)
+        {
+            if (isDuplicate(user, trans.getAmount(), trans.getDescription(), trans.getDate()))
+            {
+                trans.setDuplicate(true);
+            }
+        }
+
+        return parsedStatements;
+    }
+
+    public void saveMapping(User user, String keyword, Integer categoryId)
+    {
+        if (!userCategoryMappingRepo.existsByKeywordAndUser(keyword, user))
+        {
+            Category category = categoryRepo.findById(categoryId).orElseThrow(() -> new NotFoundException("Category not found "));
+            UserCategoryMapping categoryMapping = new UserCategoryMapping();
+            categoryMapping.setCategory(category);
+            categoryMapping.setUser(user);
+            categoryMapping.setKeyword(keyword);
+            userCategoryMappingRepo.save(categoryMapping);
+        }
+        return;
     }
 }
