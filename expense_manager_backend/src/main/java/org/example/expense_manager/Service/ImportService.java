@@ -299,6 +299,8 @@ public class ImportService
 
         StringBuilder allResponses = new StringBuilder();
 
+        ObjectMapper mapper = new ObjectMapper();
+        
         for (int i = 0; i < pages.length; i = i + 5)
         {
             for (int j = i; j < i + 5 && j < pages.length; j++)
@@ -324,8 +326,14 @@ public class ImportService
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
-            ResponseEntity<String> response = template.postForEntity(api_url + "?key=" + api_key, entity, String.class);
-            allResponses.append(response.getBody());
+            String responseBody = template.postForObject(api_url + "?key=" + api_key, entity, String.class);
+
+            JsonNode root = mapper.readTree(responseBody);
+            String chunkTransactions = root.path("candidates").get(0)
+                    .path("content")
+                    .path("parts").get(0)
+                    .path("text").textValue();
+            allResponses.append(chunkTransactions);
             text.setLength(0);
         }
 
@@ -337,6 +345,7 @@ public class ImportService
     {
         try
         {
+
             ObjectMapper mapper = new ObjectMapper();
             JsonNode root = mapper.readTree(rawResponse);
             String transactionJSON = root.path("candidates").get(0).path("content").path("parts").get(0).path("text").textValue();
@@ -439,6 +448,6 @@ public class ImportService
             categoryMapping.setKeyword(keyword);
             userCategoryMappingRepo.save(categoryMapping);
         }
-        return;
+
     }
 }
