@@ -15,6 +15,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 @RequestMapping("/expense")
@@ -133,6 +134,13 @@ public class ExpenseController
     {
         User loggedInUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         return new ResponseEntity<>(service.financialSummary(loggedInUser), HttpStatus.OK);
+    }
+
+    @PostMapping("/bulk")
+    public ResponseEntity<?> bulkAddExpenses(@RequestBody List<BulkExpenseItemDTO> items)
+    {
+        User loggedInUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return new ResponseEntity<>(service.addBulkExpenses(loggedInUser, items), HttpStatus.CREATED);
     }
 
 

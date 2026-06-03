@@ -1,6 +1,7 @@
 package org.example.expense_manager.Service;
 
 import lombok.RequiredArgsConstructor;
+import org.example.expense_manager.DTO.ControllerDTOs.BulkExpenseItemDTO;
 import org.example.expense_manager.DTO.ServiceDTOs.AnnualSummaryDTO;
 import org.example.expense_manager.DTO.ServiceDTOs.BudgetStatusDTO;
 import org.example.expense_manager.DTO.ServiceDTOs.FinancialSummaryDTO;
@@ -43,8 +44,7 @@ public class ExpenseService
         expense.setUser(user);
         expense.setCategory(category);
 
-        if (expense.getExpenseTimestamp() == null)
-            expense.setExpenseTimestamp(LocalDateTime.now());
+        if (expense.getExpenseTimestamp() == null) expense.setExpenseTimestamp(LocalDateTime.now());
 
         repo.save(expense);
         return TRUE;
@@ -77,8 +77,7 @@ public class ExpenseService
         Expense storedExpense = repo.findById(expenseId).orElseThrow(() -> new NotFoundException("Expense not found "));
         if (categoryId != null)
         {
-            Category category = categoryRepo.findById(categoryId)
-                    .orElseThrow(() -> new NotFoundException("Category not found"));
+            Category category = categoryRepo.findById(categoryId).orElseThrow(() -> new NotFoundException("Category not found"));
             storedExpense.setCategory(category);
         }
         if (storedExpense.getUser().getUserId().equals(user.getUserId()))
@@ -207,8 +206,7 @@ public class ExpenseService
 
         Expense highestExpense = expenses.stream().max(Comparator.comparing(Expense::getAmount)).orElse(null);
         Expense lowestExpense = expenses.stream().min(Comparator.comparing(Expense::getAmount)).orElse(null);
-        BigDecimal averageExpenseValue = expenses.isEmpty() ? BigDecimal.ZERO
-                : totalSpent.divide(BigDecimal.valueOf(expenses.size()), 2, RoundingMode.HALF_UP);
+        BigDecimal averageExpenseValue = expenses.isEmpty() ? BigDecimal.ZERO : totalSpent.divide(BigDecimal.valueOf(expenses.size()), 2, RoundingMode.HALF_UP);
 
         Map<String, BigDecimal> categoryPercentage = new HashMap<>();
 
@@ -218,8 +216,7 @@ public class ExpenseService
         {
             if (finalTotalSpent.compareTo(BigDecimal.ZERO) == 0) return;
 
-            BigDecimal percentage = amount.divide(finalTotalSpent, 4, RoundingMode.HALF_UP)
-                    .multiply(new BigDecimal("100"));
+            BigDecimal percentage = amount.divide(finalTotalSpent, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
             categoryPercentage.put(category, percentage);
         });
 
@@ -288,8 +285,7 @@ public class ExpenseService
 
         Expense highestExpense = expenses.stream().max(Comparator.comparing(Expense::getAmount)).orElse(null);
         Expense lowestExpense = expenses.stream().min(Comparator.comparing(Expense::getAmount)).orElse(null);
-        BigDecimal averageExpenseValue = expenses.isEmpty() ? BigDecimal.ZERO
-                : totalSpent.divide(BigDecimal.valueOf(expenses.size()), 2, RoundingMode.HALF_UP);
+        BigDecimal averageExpenseValue = expenses.isEmpty() ? BigDecimal.ZERO : totalSpent.divide(BigDecimal.valueOf(expenses.size()), 2, RoundingMode.HALF_UP);
 
         Map<String, BigDecimal> monthlyPercentage = new HashMap<>();
 
@@ -299,8 +295,7 @@ public class ExpenseService
         {
             if (finalTotalSpent.compareTo(BigDecimal.ZERO) == 0) return;
 
-            BigDecimal percentage = amount.divide(finalTotalSpent, 4, RoundingMode.HALF_UP)
-                    .multiply(new BigDecimal("100"));
+            BigDecimal percentage = amount.divide(finalTotalSpent, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
             monthlyPercentage.put(category, percentage);
         });
 
@@ -386,16 +381,14 @@ public class ExpenseService
         {
             if (finalTotalSpent.compareTo(BigDecimal.ZERO) == 0) return;
 
-            BigDecimal percentage = amount.divide(finalTotalSpent, 4, RoundingMode.HALF_UP)
-                    .multiply(new BigDecimal("100"));
+            BigDecimal percentage = amount.divide(finalTotalSpent, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
             categoryPercentage.put(category, percentage);
         });
 
 
         Expense highestExpense = expenses.stream().max(Comparator.comparing(Expense::getAmount)).orElse(null);
         Expense lowestExpense = expenses.stream().min(Comparator.comparing(Expense::getAmount)).orElse(null);
-        BigDecimal averageExpenseValue = expenses.isEmpty() ? BigDecimal.ZERO
-                : totalSpent.divide(BigDecimal.valueOf(expenses.size()), 2, RoundingMode.HALF_UP);
+        BigDecimal averageExpenseValue = expenses.isEmpty() ? BigDecimal.ZERO : totalSpent.divide(BigDecimal.valueOf(expenses.size()), 2, RoundingMode.HALF_UP);
 
         FinancialSummaryDTO summaryDTO = new FinancialSummaryDTO();
         summaryDTO.setTransactionCount(transactionCount);
@@ -409,5 +402,28 @@ public class ExpenseService
         return summaryDTO;
     }
 
+    public List<Expense> addBulkExpenses(User user, List<BulkExpenseItemDTO> items)
+    {
+
+        List<Expense> expenses = new ArrayList<>();
+        for (var item : items)
+        {
+            Expense expense = new Expense();
+            expense.setCategory(categoryRepo.findById(item.getCategoryId()).orElseThrow(() -> new NotFoundException("Category not found")));
+            expense.setDescription(item.getDescription());
+            expense.setAmount(item.getAmount());
+            expense.setUser(user);
+            if (item.getDate() != null)
+            {
+                expense.setExpenseTimestamp(item.getDate().atStartOfDay());
+            } else
+            {
+                expense.setExpenseTimestamp(LocalDateTime.now());
+            }
+            expenses.add(expense);
+        }
+        repo.saveAll(expenses);
+        return expenses;
+    }
 
 }
