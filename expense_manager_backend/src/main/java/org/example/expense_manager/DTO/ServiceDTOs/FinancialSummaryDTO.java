@@ -3,7 +3,6 @@ package org.example.expense_manager.DTO.ServiceDTOs;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.example.expense_manager.Entity.Expense;
 
 import java.math.BigDecimal;
 import java.util.Map;
@@ -13,8 +12,8 @@ import java.util.Map;
 @AllArgsConstructor
 public class FinancialSummaryDTO
 {
-    private Expense highestExpense;
-    private Expense lowestExpense;
+    private ExpenseResponseDTO highestExpense;
+    private ExpenseResponseDTO lowestExpense;
     private BigDecimal averageExpenseValue;
     private BigDecimal totalSpent;
     private int transactionCount;

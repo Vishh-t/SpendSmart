@@ -440,7 +440,7 @@ public class ImportService
         String text = extractTextFromPdf(file);
         String strippedText = stripSensitiveData(text);
 
-        List<Category> categories = categoryRepo.findAll();
+        List<Category> categories = categoryRepo.findAllByUser(user);
 
         String rawStatements = callGemini(categories, strippedText, includeCredits);
 

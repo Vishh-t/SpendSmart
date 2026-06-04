@@ -21,6 +21,5 @@ public class UpdateExpenseDTO
 
     private String description;
 
-
     private Integer categoryId;
 }

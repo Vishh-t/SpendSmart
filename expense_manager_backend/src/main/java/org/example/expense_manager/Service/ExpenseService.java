@@ -2,6 +2,8 @@ package org.example.expense_manager.Service;
 
 import lombok.RequiredArgsConstructor;
 import org.example.expense_manager.DTO.ControllerDTOs.BulkExpenseItemDTO;
+import org.example.expense_manager.DTO.ServiceDTOs.CategorySummaryDTO;
+import org.example.expense_manager.DTO.ServiceDTOs.ExpenseResponseDTO;
 import org.example.expense_manager.DTO.ServiceDTOs.AnnualSummaryDTO;
 import org.example.expense_manager.DTO.ServiceDTOs.BudgetStatusDTO;
 import org.example.expense_manager.DTO.ServiceDTOs.FinancialSummaryDTO;
@@ -14,11 +16,8 @@ import org.example.expense_manager.Exceptions.NotFoundException;
 import org.example.expense_manager.Exceptions.UnauthorizedUserException;
 import org.example.expense_manager.Repository.CategoryRepo;
 import org.example.expense_manager.Repository.ExpenseRepo;
-import org.example.expense_manager.Repository.UserRepo;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
-
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -27,8 +26,6 @@ import java.time.LocalTime;
 import java.time.Month;
 import java.util.*;
 
-import static java.lang.Boolean.TRUE;
-
 @Service
 @RequiredArgsConstructor
 public class ExpenseService
@@ -36,8 +33,21 @@ public class ExpenseService
     private final ExpenseRepo repo;
     private final CategoryRepo categoryRepo;
 
+    private ExpenseResponseDTO convertToResponse(Expense expense)
+    {
+        ExpenseResponseDTO response = new ExpenseResponseDTO();
+        CategorySummaryDTO category = new CategorySummaryDTO();
+        category.setCategoryId(expense.getCategory().getCategoryId());
+        category.setCategoryName(expense.getCategory().getCategoryName());
+        response.setExpenseId(expense.getExpenseId());
+        response.setDescription(expense.getDescription());
+        response.setAmount(expense.getAmount());
+        response.setCategory(category);
+        response.setExpenseTimestamp(expense.getExpenseTimestamp());
+        return response;
+    }
 
-    public Boolean addExpense(User user, int categoryId, Expense expense)
+    public ExpenseResponseDTO addExpense(User user, int categoryId, Expense expense)
     {
 
         Category category = categoryRepo.findById(categoryId).orElseThrow(() -> new NotFoundException("Category not found"));
@@ -47,32 +57,37 @@ public class ExpenseService
         if (expense.getExpenseTimestamp() == null) expense.setExpenseTimestamp(LocalDateTime.now());
 
         repo.save(expense);
-        return TRUE;
+        return convertToResponse(expense);
 
     }
 
-    public List<Expense> getExpensesByUser(User user)
+    public List<ExpenseResponseDTO> getExpensesByUser(User user)
     {
-
-        return repo.findAllByUser(user);
+        List<Expense> expenses = repo.findAllByUser(user);
+        List<ExpenseResponseDTO> responses = new ArrayList<>();
+        for (var expense : expenses)
+        {
+            responses.add(convertToResponse(expense));
+        }
+        return responses;
 
     }
 
-    public Expense getExpenseById(int expenseId, User user)
+    public ExpenseResponseDTO getExpenseById(int expenseId, User user)
     {
 
         Expense expense = repo.findById(expenseId).orElseThrow(() -> new NotFoundException("Expense not found"));
 
         if (expense.getUser().equals(user))
         {
-            return expense;
+            return convertToResponse(expense);
         } else
         {
             throw new UnauthorizedUserException("cannot access other user's expenses");
         }
     }
 
-    public Boolean updateExpense(User user, int expenseId, Integer categoryId, Expense expense)
+    public ExpenseResponseDTO updateExpense(User user, int expenseId, Integer categoryId, Expense expense)
     {
         Expense storedExpense = repo.findById(expenseId).orElseThrow(() -> new NotFoundException("Expense not found "));
         if (categoryId != null)
@@ -96,7 +111,7 @@ public class ExpenseService
             }
 
             repo.save(storedExpense);
-            return TRUE;
+            return convertToResponse(storedExpense);
 
         } else
         {
@@ -104,31 +119,36 @@ public class ExpenseService
         }
     }
 
-    public Boolean deleteExpense(User user, int expenseId)
+    public ExpenseResponseDTO deleteExpense(User user, int expenseId)
     {
 
         Expense expense = repo.findById(expenseId).orElseThrow(() -> new NotFoundException("Expense not found"));
         if (expense.getUser().equals(user))
         {
             repo.deleteById(expenseId);
-            return TRUE;
+            return convertToResponse(expense);
         } else
         {
             throw new UnauthorizedUserException("Cannot delete other user's Expenses");
         }
     }
 
-    public List<Expense> getExpensesByCategory(int categoryId, User user)
+    public List<ExpenseResponseDTO> getExpensesByCategory(int categoryId, User user)
     {
 
         Category category = categoryRepo.findById(categoryId).orElseThrow(() -> new NotFoundException("Category not found"));
-        List<Expense> requiredExpense = repo.findAllByUserAndCategory(user, category);
+        List<Expense> requiredExpenses = repo.findAllByUserAndCategory(user, category);
 
-        return requiredExpense;
+        List<ExpenseResponseDTO> responses = new ArrayList<>();
+        for (var expense : requiredExpenses)
+        {
+            responses.add(convertToResponse(expense));
+        }
+        return responses;
 
     }
 
-    public List<Expense> getExpensesByDateRange(User user, LocalDate startDay, LocalDate endDay)
+    public List<ExpenseResponseDTO> getExpensesByDateRange(User user, LocalDate startDay, LocalDate endDay)
     {
 
         LocalDateTime start = startDay.atStartOfDay();
@@ -139,10 +159,16 @@ public class ExpenseService
         {
             throw new NotFoundException("No Expense found");
         }
-        return expenses;
+
+        List<ExpenseResponseDTO> responses = new ArrayList<>();
+        for (var expense : expenses)
+        {
+            responses.add(convertToResponse(expense));
+        }
+        return responses;
     }
 
-    public List<Expense> getSortedExpenses(User user, String sortBy, String order)
+    public List<ExpenseResponseDTO> getSortedExpenses(User user, String sortBy, String order)
     {
 
         Sort.Direction direction;
@@ -170,7 +196,12 @@ public class ExpenseService
 
         List<Expense> expenses = repo.findAllByUser(user, sort);
 
-        return expenses;
+        List<ExpenseResponseDTO> responses = new ArrayList<>();
+        for (var expense : expenses)
+        {
+            responses.add(convertToResponse(expense));
+        }
+        return responses;
     }
 
     public MonthlySummaryDTO monthlySummary(User user, int month, int year)
@@ -182,7 +213,12 @@ public class ExpenseService
         LocalDateTime endDate = end.atTime(LocalTime.MAX);
 
         List<Expense> expenses = repo.findAllByUserAndExpenseTimestampBetween(user, startDate, endDate);
+        List<ExpenseResponseDTO> responses = new ArrayList<>();
 
+        for (var expense : expenses)
+        {
+            responses.add(convertToResponse(expense));
+        }
 
         int transactionCount = expenses.size();
         BigDecimal totalSpent = BigDecimal.ZERO;
@@ -223,14 +259,14 @@ public class ExpenseService
         MonthlySummaryDTO summaryDTO = new MonthlySummaryDTO();
         summaryDTO.setMonth(month);
         summaryDTO.setYear(year);
-        summaryDTO.setExpenses(expenses);
+        summaryDTO.setExpenses(responses);
         summaryDTO.setBudget(budget);
         summaryDTO.setTransactionCount(transactionCount);
         summaryDTO.setRemaining(remaining);
         summaryDTO.setCategoryBreakdown(categoryBreakdown);
         summaryDTO.setTotalSpent(totalSpent);
-        summaryDTO.setHighestExpense(highestExpense);
-        summaryDTO.setLowestExpense(lowestExpense);
+        summaryDTO.setHighestExpense(convertToResponse(Objects.requireNonNull(highestExpense)));
+        summaryDTO.setLowestExpense(convertToResponse(lowestExpense));
         summaryDTO.setAverageExpenseValue(averageExpenseValue);
         summaryDTO.setCategoryPercentage(categoryPercentage);
 
@@ -303,8 +339,8 @@ public class ExpenseService
         summaryDTO.setTotalSpent(totalSpent);
         summaryDTO.setTransactionCount(expenses.size());
         summaryDTO.setMonthlyBreakdown(monthlyBreakdown);
-        summaryDTO.setHighestExpense(highestExpense);
-        summaryDTO.setLowestExpense(lowestExpense);
+        summaryDTO.setHighestExpense(convertToResponse(Objects.requireNonNull(highestExpense)));
+        summaryDTO.setLowestExpense(convertToResponse(Objects.requireNonNull(lowestExpense)));
         summaryDTO.setAverageExpenseValue(averageExpenseValue);
         summaryDTO.setMonthlyPercentage(monthlyPercentage);
 
@@ -394,18 +430,19 @@ public class ExpenseService
         summaryDTO.setTransactionCount(transactionCount);
         summaryDTO.setCategoryBreakdown(categoryBreakdown);
         summaryDTO.setTotalSpent(totalSpent);
-        summaryDTO.setHighestExpense(highestExpense);
-        summaryDTO.setLowestExpense(lowestExpense);
+        summaryDTO.setHighestExpense(convertToResponse(Objects.requireNonNull(highestExpense)));
+        summaryDTO.setLowestExpense(convertToResponse(lowestExpense));
         summaryDTO.setAverageExpenseValue(averageExpenseValue);
         summaryDTO.setCategoryPercentage(categoryPercentage);
 
         return summaryDTO;
     }
 
-    public List<Expense> addBulkExpenses(User user, List<BulkExpenseItemDTO> items)
+    public List<ExpenseResponseDTO> addBulkExpenses(User user, List<BulkExpenseItemDTO> items)
     {
 
         List<Expense> expenses = new ArrayList<>();
+        List<ExpenseResponseDTO> responses = new ArrayList<>();
         for (var item : items)
         {
             Expense expense = new Expense();
@@ -422,9 +459,11 @@ public class ExpenseService
                 expense.setExpenseTimestamp(LocalDateTime.now());
             }
             expenses.add(expense);
+
+            responses.add(convertToResponse(expense));
         }
         repo.saveAll(expenses);
-        return expenses;
+        return responses;
     }
 
 }
