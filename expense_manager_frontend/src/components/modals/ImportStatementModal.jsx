@@ -70,13 +70,14 @@ function CategoryCell({ value, categories, onChange, onCategoryAdded }) {
                 onClick={() => setOpen(o => !o)}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs w-full text-left"
                 style={{
-                    backgroundColor: "rgba(var(--raw-input-bg), 0.6)",
-                    color: selected ? "var(--color-text-primary)" : "var(--color-text-secondary)",
+                    backgroundColor: value ? "rgba(var(--raw-input-bg), 0.6)" : "rgba(239,68,68,0.10)",
+                    color: selected ? "var(--color-text-primary)" : "#ef4444",
+                    border: value ? "1px solid transparent" : "1px solid rgba(239,68,68,0.25)",
                     minWidth: "130px"
                 }}
             >
                 <span className="flex-1 truncate">{selected?.categoryName ?? "Uncategorized"}</span>
-                <ChevronDown size={11} style={{ color: "var(--color-text-secondary)", flexShrink: 0 }} />
+                <ChevronDown size={11} style={{ color: value ? "var(--color-text-secondary)" : "#ef4444", flexShrink: 0 }} />
             </button>
             {open && (
                 <div
@@ -155,7 +156,6 @@ function DateCell({ value, onChange, disabled }) {
         return () => document.removeEventListener("mousedown", outside);
     }, []);
 
-    // value is "yyyy-MM-dd" string or null
     const parts  = value ? value.split("-") : null;
     const selYear  = parts ? parseInt(parts[0]) : null;
     const selMonth = parts ? parseInt(parts[1]) - 1 : null;
@@ -210,10 +210,8 @@ function DateCell({ value, onChange, disabled }) {
    MAIN MODAL
    ═══════════════════════════════════════════════════════════════════════════ */
 function ImportStatementModal({ onClose, onSuccess }) {
-    /* ── screen state ── */
-    const [screen, setScreen] = useState("upload"); // "upload" | "preview"
+    const [screen, setScreen] = useState("upload");
 
-    /* ── upload screen ── */
     const [file,           setFile]           = useState(null);
     const [includeCredits, setIncludeCredits] = useState(false);
     const [dragOver,       setDragOver]       = useState(false);
@@ -221,33 +219,30 @@ function ImportStatementModal({ onClose, onSuccess }) {
     const [parseError,     setParseError]     = useState(null);
     const fileInputRef = useRef(null);
 
-    /* ── preview screen ── */
-    const [rows,       setRows]       = useState([]);   // ParsedTransactionDTO[]
+    const [rows,       setRows]       = useState([]);
     const [categories, setCategories] = useState([]);
     const [saving,     setSaving]     = useState(false);
     const [saveError,  setSaveError]  = useState(null);
-    const [savedCount, setSavedCount] = useState(null); // null = not saved yet
+    const [savedCount, setSavedCount] = useState(null);
 
-    /* ── load categories once ── */
     useEffect(() => {
         getAllCategories().then(setCategories).catch(() => setCategories([]));
     }, []);
 
-    /* ── derived stats ── */
-    const totalRows      = rows.length;
-    const duplicateRows  = rows.filter(r => r.isDuplicate).length;
-    const activeRows     = rows.filter(r => !r._removed);
-    const willSaveCount  = activeRows.length;
-    const totalAmount    = activeRows.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+    const totalRows          = rows.length;
+    const duplicateRows      = rows.filter(r => r.duplicate).length;
+    const activeRows         = rows.filter(r => !r._removed);
+    const willSaveCount      = activeRows.length;
+    const uncategorizedCount = activeRows.filter(r => !r.categoryId).length;
+    const totalAmount        = activeRows.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+    const canSave            = willSaveCount > 0 && uncategorizedCount === 0;
 
-    /* ── merchant totals ── */
     const merchantTotals = {};
     activeRows.forEach(r => {
         const key = (r.keyword || r.description || "unknown").toLowerCase();
         merchantTotals[key] = (merchantTotals[key] || 0) + (parseFloat(r.amount) || 0);
     });
 
-    /* ── file helpers ── */
     function handleFileChange(f) {
         if (!f) return;
         if (f.type !== "application/pdf") { setParseError("Only PDF files are supported."); return; }
@@ -261,7 +256,6 @@ function ImportStatementModal({ onClose, onSuccess }) {
         handleFileChange(e.dataTransfer.files[0]);
     }
 
-    /* ── parse ── */
     async function handleParse() {
         if (!file) { setParseError("Please select a PDF file."); return; }
         setParsing(true);
@@ -278,7 +272,6 @@ function ImportStatementModal({ onClose, onSuccess }) {
         }
     }
 
-    /* ── row edits ── */
     const updateRow = useCallback((id, field, value) => {
         setRows(prev => prev.map(r => r._id === id ? { ...r, [field]: value } : r));
     }, []);
@@ -291,7 +284,6 @@ function ImportStatementModal({ onClose, onSuccess }) {
         setRows(prev => prev.map(r => r._id === id ? { ...r, _removed: false } : r));
     }, []);
 
-    /* ── save ── */
     async function handleSave() {
         setSaving(true);
         setSaveError(null);
@@ -470,9 +462,10 @@ function ImportStatementModal({ onClose, onSuccess }) {
                         {savedCount === null ? (
                             <div className="flex items-center gap-6 px-7 py-3.5 shrink-0 flex-wrap"
                                 style={{ borderBottom: "1px solid rgba(78,222,163,0.08)", backgroundColor: "rgba(var(--raw-card-bg),0.5)" }}>
-                                <Stat label="Found"      value={totalRows}      color="var(--color-text-primary)" />
-                                <Stat label="Will Save"  value={willSaveCount}  color="#4edea3" />
-                                <Stat label="Duplicates" value={duplicateRows}  color="#fbbf24" />
+                                <Stat label="Found"      value={totalRows}           color="var(--color-text-primary)" />
+                                <Stat label="Will Save"  value={willSaveCount}       color="#4edea3" />
+                                <Stat label="Duplicates" value={duplicateRows}       color="#fbbf24" />
+                                <Stat label="Uncategorized" value={uncategorizedCount} color={uncategorizedCount > 0 ? "#ef4444" : "var(--color-text-primary)"} />
                                 <Stat label="Total"      value={`₹${totalAmount.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`} color="var(--color-text-primary)" />
                                 <div className="flex-1" />
                                 <span className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Greyed rows = removed · use restore to bring back</span>
@@ -502,12 +495,20 @@ function ImportStatementModal({ onClose, onSuccess }) {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {rows.map(row => (
+                                    {rows.map(row => {
+                                        const isUncategorized = !row._removed && !row.categoryId;
+                                        const isDup = row.duplicate && !row._removed;
+                                        const bg = isUncategorized
+                                            ? "rgba(239,68,68,0.06)"
+                                            : isDup
+                                            ? "rgba(251,191,36,0.04)"
+                                            : "transparent";
+                                        return (
                                         <tr key={row._id} style={{
                                             borderBottom: "1px solid rgba(78,222,163,0.05)",
                                             opacity: row._removed ? 0.35 : 1,
-                                            backgroundColor: row.isDuplicate && !row._removed ? "rgba(251,191,36,0.04)" : "transparent",
-                                            transition: "opacity 0.2s",
+                                            backgroundColor: bg,
+                                            transition: "opacity 0.2s, background-color 0.2s",
                                         }}>
                                             <td className="px-4 py-2.5">
                                                 <DateCell
@@ -546,7 +547,7 @@ function ImportStatementModal({ onClose, onSuccess }) {
                                             <td className="px-4 py-2.5">
                                                 <div className="flex items-center gap-1.5">
                                                     <ConfidenceBadge score={row.confidenceScore} />
-                                                    {row.isDuplicate && <span title="Possible duplicate" style={{ color: "#fbbf24" }}><AlertTriangle size={12} /></span>}
+                                                    {row.duplicate && <span title="Possible duplicate" style={{ color: "#fbbf24" }}><AlertTriangle size={12} /></span>}
                                                 </div>
                                             </td>
                                             <td className="px-4 py-2.5">
@@ -566,7 +567,8 @@ function ImportStatementModal({ onClose, onSuccess }) {
                                                 )}
                                             </td>
                                         </tr>
-                                    ))}
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
@@ -579,14 +581,21 @@ function ImportStatementModal({ onClose, onSuccess }) {
                                     </div>
                                 )}
                                 <div className="flex-1" />
-                                <span className="text-xs" style={{ color: "var(--color-text-secondary)" }}>
-                                    {willSaveCount} expense{willSaveCount !== 1 ? "s" : ""} will be added
-                                </span>
+                                {uncategorizedCount > 0 ? (
+                                    <span className="text-xs flex items-center gap-1.5" style={{ color: "#ef4444" }}>
+                                        <AlertTriangle size={12} />
+                                        {uncategorizedCount} row{uncategorizedCount !== 1 ? "s" : ""} need a category
+                                    </span>
+                                ) : (
+                                    <span className="text-xs" style={{ color: "var(--color-text-secondary)" }}>
+                                        {willSaveCount} expense{willSaveCount !== 1 ? "s" : ""} will be added
+                                    </span>
+                                )}
                                 <button onClick={onClose} className="px-5 py-2.5 rounded-lg text-sm"
                                     style={{ backgroundColor: "rgba(var(--raw-input-bg),0.5)", color: "var(--color-text-secondary)" }}>
                                     Cancel
                                 </button>
-                                <button onClick={handleSave} disabled={saving || willSaveCount === 0}
+                                <button onClick={handleSave} disabled={saving || !canSave}
                                     className="px-6 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2 disabled:opacity-40"
                                     style={{ background: "linear-gradient(135deg,#4edea3,#10b981)", color: "#003824" }}>
                                     {saving ? <><Loader2 size={14} className="animate-spin" /> Saving…</> : `Confirm & Save ${willSaveCount}`}

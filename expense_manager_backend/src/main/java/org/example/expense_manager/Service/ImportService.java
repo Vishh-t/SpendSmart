@@ -18,7 +18,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
@@ -281,9 +280,9 @@ public class ImportService
     {
         if (keyword == null) return false;
 
-        System.out.println("Checking duplicate: amount=" + amount + " keyword=" + keyword + " dateTime=" + dateTime);
-
-        return expenseRepo.existsByUserAndAmountAndKeywordAndExpenseTimestamp(user, amount, keyword, dateTime);
+        boolean result = expenseRepo.existsByUserAndAmountAndKeywordAndExpenseTimestamp(user, amount, keyword, dateTime);
+        System.out.println("isDuplicate result: " + result + " for amount=" + amount + " keyword=" + keyword + " dateTime=" + dateTime);
+        return result;
     }
 
     private String callGemini(List<Category> categoryList, String statementText, boolean includeCredits)
@@ -389,8 +388,7 @@ public class ImportService
                 if (rawTime != null)
                 {
                     dateTime = LocalDateTime.parse(rawDate + "T" + rawTime + ":00");
-                }
-                else
+                } else
                 {
                     dateTime = LocalDate.parse(rawDate).atStartOfDay();
                 }
