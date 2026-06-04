@@ -412,10 +412,11 @@ public class ExpenseService
             expense.setCategory(categoryRepo.findById(item.getCategoryId()).orElseThrow(() -> new NotFoundException("Category not found")));
             expense.setDescription(item.getDescription());
             expense.setAmount(item.getAmount());
+            expense.setKeyword(item.getKeyword());
             expense.setUser(user);
-            if (item.getDate() != null)
+            if (item.getDateTime() != null)
             {
-                expense.setExpenseTimestamp(item.getDate().atStartOfDay());
+                expense.setExpenseTimestamp(item.getDateTime());
             } else
             {
                 expense.setExpenseTimestamp(LocalDateTime.now());

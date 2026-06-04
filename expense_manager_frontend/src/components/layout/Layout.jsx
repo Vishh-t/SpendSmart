@@ -1,19 +1,25 @@
 import { useState } from "react";
-import { Plus, Moon, Sun } from "lucide-react";
+import { Plus, Moon, Sun, FileUp } from "lucide-react";
 import SideBar from "./SideBar.jsx";
 import AddExpenseModal from "../modals/AddExpenseModal.jsx";
+import ImportStatementModal from "../modals/ImportStatementModal.jsx";
 import { useTheme } from "../../context/ThemeContext.jsx";
 import { useData } from "../../context/DataContext.jsx";
 
 function Layout({ children }) {
 
     const [showAddExpense,   setShowAddExpense]   = useState(false);
+    const [showImport,       setShowImport]       = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const { isDark, toggleTheme } = useTheme();
     const { triggerRefresh } = useData();
 
     function handleExpenseSuccess() {
         setShowAddExpense(false);
+        triggerRefresh();
+    }
+
+    function handleImportSuccess() {
         triggerRefresh();
     }
 
@@ -26,12 +32,10 @@ function Layout({ children }) {
                 onToggle={() => setSidebarCollapsed(c => !c)}
             />
 
-            {/* ── right side ─────────────────────────────────────────── */}
             <div
                 className="flex flex-col flex-1 min-h-screen transition-all duration-300 ease-in-out"
                 style={{ marginLeft: sidebarCollapsed ? "64px" : "224px" }}
             >
-                {/* ── top bar ──────────────────────────────────────────── */}
                 <header
                     className="flex items-center justify-end gap-3 px-8 py-4 shrink-0"
                     style={{
@@ -41,7 +45,7 @@ function Layout({ children }) {
                         backgroundColor: "var(--color-surface)",
                     }}
                 >
-                    {/* Theme toggle — crescent moon / sun */}
+                    {/* Theme toggle */}
                     <button
                         onClick={toggleTheme}
                         title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
@@ -53,9 +57,7 @@ function Layout({ children }) {
                         onMouseEnter={e => {
                             e.currentTarget.style.backgroundColor = isDark ? "rgba(78,222,163,0.12)" : "rgba(0,108,73,0.16)";
                             e.currentTarget.style.color = isDark ? "#4edea3" : "#006C49";
-                            e.currentTarget.style.boxShadow = isDark
-                                ? "0 0 12px rgba(78,222,163,0.2)"
-                                : "0 0 12px rgba(0,108,73,0.15)";
+                            e.currentTarget.style.boxShadow = isDark ? "0 0 12px rgba(78,222,163,0.2)" : "0 0 12px rgba(0,108,73,0.15)";
                         }}
                         onMouseLeave={e => {
                             e.currentTarget.style.backgroundColor = isDark ? "rgba(49,57,77,0.6)" : "rgba(0,108,73,0.08)";
@@ -64,6 +66,30 @@ function Layout({ children }) {
                         }}
                     >
                         {isDark ? <Moon size={16} /> : <Sun size={16} />}
+                    </button>
+
+                    {/* Import Statement button */}
+                    <button
+                        onClick={() => setShowImport(true)}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
+                        style={{
+                            backgroundColor: isDark ? "rgba(49,57,77,0.7)" : "rgba(0,108,73,0.08)",
+                            color: isDark ? "#8892a4" : "#4A6358",
+                            border: isDark ? "1px solid rgba(78,222,163,0.15)" : "1px solid rgba(0,108,73,0.15)",
+                        }}
+                        onMouseEnter={e => {
+                            e.currentTarget.style.backgroundColor = isDark ? "rgba(78,222,163,0.10)" : "rgba(0,108,73,0.14)";
+                            e.currentTarget.style.color = isDark ? "#4edea3" : "#006C49";
+                            e.currentTarget.style.boxShadow = isDark ? "0 0 12px rgba(78,222,163,0.15)" : "0 0 12px rgba(0,108,73,0.12)";
+                        }}
+                        onMouseLeave={e => {
+                            e.currentTarget.style.backgroundColor = isDark ? "rgba(49,57,77,0.7)" : "rgba(0,108,73,0.08)";
+                            e.currentTarget.style.color = isDark ? "#8892a4" : "#4A6358";
+                            e.currentTarget.style.boxShadow = "none";
+                        }}
+                    >
+                        <FileUp size={14} />
+                        Import Statement
                     </button>
 
                     {/* Add Expense CTA */}
@@ -92,12 +118,10 @@ function Layout({ children }) {
                     </button>
                 </header>
 
-                {/* ── page content ─────────────────────────────────────── */}
                 <main className="flex-1 p-8">
                     {children}
                 </main>
 
-                {/* ── page footer ──────────────────────────────────── */}
                 <footer
                     className="shrink-0 flex items-center justify-between px-8 py-3"
                     style={{
@@ -132,6 +156,13 @@ function Layout({ children }) {
                 <AddExpenseModal
                     onClose={() => setShowAddExpense(false)}
                     onSuccess={handleExpenseSuccess}
+                />
+            )}
+
+            {showImport && (
+                <ImportStatementModal
+                    onClose={() => setShowImport(false)}
+                    onSuccess={handleImportSuccess}
                 />
             )}
 

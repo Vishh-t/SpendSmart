@@ -4,7 +4,7 @@ package org.example.expense_manager.DTO.ServiceDTOs;
 import lombok.Data;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data
 public class ParsedTransactionDTO
@@ -13,7 +13,7 @@ public class ParsedTransactionDTO
 
     private BigDecimal amount;
 
-    private LocalDate date;
+    private LocalDateTime dateTime;
 
     private String description;
 

@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data
 public class BulkExpenseItemDTO
@@ -19,7 +19,9 @@ public class BulkExpenseItemDTO
     @NotNull
     private Integer categoryId;
 
-    private LocalDate date;
+    private LocalDateTime dateTime;
+
+    private String keyword;
 
 
 }

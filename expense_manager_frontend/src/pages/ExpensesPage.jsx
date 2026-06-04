@@ -53,6 +53,10 @@ function ExpensesPage() {
         expense.category?.categoryName?.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
+    // total of all filtered results (not just current page)
+    const filteredTotal = filteredExpenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+    const showFilteredTotal = searchQuery.trim() !== "" || selectedCategory !== "all";
+
     useEffect(() => {
         async function fetchInitialData() {
             try {
@@ -286,6 +290,24 @@ function ExpensesPage() {
                             ))
                         )}
                     </tbody>
+
+                    {/* Search / filter total row */}
+                    {showFilteredTotal && filteredExpenses.length > 0 && (
+                        <tfoot>
+                            <tr className="border-t-2" style={{ borderColor: "rgba(78,222,163,0.20)" }}>
+                                <td colSpan={3} className="px-5 py-3 text-xs" style={{ color: "var(--color-text-secondary)" }}>
+                                    Total across {filteredExpenses.length} result{filteredExpenses.length !== 1 ? "s" : ""}
+                                    {searchQuery.trim() !== "" && (
+                                        <span className="ml-1">for <span style={{ color: "var(--color-text-primary)" }}>"{searchQuery}"</span></span>
+                                    )}
+                                </td>
+                                <td className="px-5 py-3 text-right text-sm font-bold" style={{ color: "var(--color-primary)", fontFamily: "'Berkeley Mono','Courier New',monospace" }}>
+                                    -₹{filteredTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </td>
+                                <td />
+                            </tr>
+                        </tfoot>
+                    )}
                 </table>
 
                 {/* Pagination */}

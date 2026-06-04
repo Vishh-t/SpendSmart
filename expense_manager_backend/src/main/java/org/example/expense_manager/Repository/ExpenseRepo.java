@@ -24,7 +24,7 @@ public interface ExpenseRepo extends JpaRepository<Expense, Integer>
 
     List<Expense> findAllByUserAndExpenseTimestampBetween(User user, LocalDateTime start, LocalDateTime end);
 
-    boolean existsByUserAndAmountAndDescriptionAndExpenseTimestampBetween(
-            User user, BigDecimal amount, String description, LocalDateTime start, LocalDateTime end
+    boolean existsByUserAndAmountAndKeywordAndExpenseTimestamp(
+            User user, BigDecimal amount, String keyword, LocalDateTime dateTime
     );
 }

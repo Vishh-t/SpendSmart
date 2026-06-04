@@ -40,4 +40,6 @@ public class Expense
     private LocalDateTime expenseTimestamp;
 
     private String description;
+
+    private String keyword;
 }

@@ -89,6 +89,7 @@ public class ImportService
               {
                 "amount": 123.45,
                 "date": "2026-05-18",
+                "time": "14:35",
                 "description": "UPI payment to Swiggy",
                 "vendor": "swiggy",
                 "categoryId": 4,
@@ -169,6 +170,11 @@ public class ImportService
             - 60 to 89: recognizable merchant but some ambiguity
             - Below 60: unknown, unclear, or ambiguous merchant
             - Never give 90+ to unknown merchants
+            
+            7. time
+            - Format strictly as HH:mm (24 hour)
+            - Convert AM/PM to 24 hour format
+            - If time cannot be determined, use null
             
             DEBIT vs CREDIT FILTERING:
             INCLUDE CREDITS is set to: {includeCredits}
@@ -271,13 +277,13 @@ public class ImportService
         return rawVendor.toLowerCase().replaceAll("\\b(pvt|ltd|private|limited|india|payment|services|enterprise|enterprises)\\b", "").replaceAll("\\s+", " ").trim();
     }
 
-    private boolean isDuplicate(User user, BigDecimal amount, String description, LocalDate date)
+    private boolean isDuplicate(User user, BigDecimal amount, String keyword, LocalDateTime dateTime)
     {
+        if (keyword == null) return false;
 
-        LocalDateTime startTime = date.atStartOfDay();
-        LocalDateTime endTime = date.atTime(23, 59, 59);
+        System.out.println("Checking duplicate: amount=" + amount + " keyword=" + keyword + " dateTime=" + dateTime);
 
-        return expenseRepo.existsByUserAndAmountAndDescriptionAndExpenseTimestampBetween(user, amount, description, startTime, endTime);
+        return expenseRepo.existsByUserAndAmountAndKeywordAndExpenseTimestamp(user, amount, keyword, dateTime);
     }
 
     private String callGemini(List<Category> categoryList, String statementText, boolean includeCredits)
@@ -300,7 +306,7 @@ public class ImportService
         StringBuilder allResponses = new StringBuilder();
 
         ObjectMapper mapper = new ObjectMapper();
-        
+
         for (int i = 0; i < pages.length; i = i + 5)
         {
             for (int j = i; j < i + 5 && j < pages.length; j++)
@@ -327,13 +333,23 @@ public class ImportService
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
             String responseBody = template.postForObject(api_url + "?key=" + api_key, entity, String.class);
+            System.out.println("Gemini raw response: " + responseBody);
 
-            JsonNode root = mapper.readTree(responseBody);
-            String chunkTransactions = root.path("candidates").get(0)
-                    .path("content")
-                    .path("parts").get(0)
-                    .path("text").textValue();
-            allResponses.append(chunkTransactions);
+            try
+            {
+                JsonNode root = mapper.readTree(responseBody);
+                String chunkTransactions = root.path("candidates").get(0)
+                        .path("content")
+                        .path("parts").get(0)
+                        .path("text").textValue();
+                if (chunkTransactions != null)
+                {
+                    allResponses.append(chunkTransactions);
+                }
+            } catch (Exception e)
+            {
+                throw new AppException("Gemini API call failed: " + e.getMessage());
+            }
             text.setLength(0);
         }
 
@@ -347,10 +363,8 @@ public class ImportService
         {
 
             ObjectMapper mapper = new ObjectMapper();
-            JsonNode root = mapper.readTree(rawResponse);
-            String transactionJSON = root.path("candidates").get(0).path("content").path("parts").get(0).path("text").textValue();
 
-            String mergedJSON = transactionJSON.replace("][", ",");
+            String mergedJSON = rawResponse.replace("][", ",");
 
             JsonNode transactions = mapper.readTree(mergedJSON);
 
@@ -369,13 +383,23 @@ public class ImportService
                 BigDecimal amount = new BigDecimal(rawAmount);
 
                 String rawDate = transaction.path("date").textValue();
-                LocalDate date = LocalDate.parse(rawDate);
+                String rawTime = transaction.path("time").textValue();
+
+                LocalDateTime dateTime;
+                if (rawTime != null)
+                {
+                    dateTime = LocalDateTime.parse(rawDate + "T" + rawTime + ":00");
+                }
+                else
+                {
+                    dateTime = LocalDate.parse(rawDate).atStartOfDay();
+                }
 
                 String keyword = normalizeKeyword(transaction.path("vendor").textValue());
 
                 ParsedTransactionDTO result = new ParsedTransactionDTO();
                 result.setDescription(description);
-                result.setDate(date);
+                result.setDateTime(dateTime);
                 result.setAmount(amount);
                 result.setKeyword(keyword);
                 result.setCategoryId(categoryId);
@@ -428,7 +452,7 @@ public class ImportService
 
         for (var trans : parsedStatements)
         {
-            if (isDuplicate(user, trans.getAmount(), trans.getDescription(), trans.getDate()))
+            if (isDuplicate(user, trans.getAmount(), trans.getKeyword(), trans.getDateTime()))
             {
                 trans.setDuplicate(true);
             }
