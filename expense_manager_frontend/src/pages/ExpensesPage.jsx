@@ -60,14 +60,18 @@ function ExpensesPage() {
     useEffect(() => {
         async function fetchInitialData() {
             try {
+                const safeGet = (promise) => promise.catch(err => {
+                    if (err.response?.status === 404) return null;
+                    throw err;
+                });
                 const [expensesData, categoriesData, summaryData] = await Promise.all([
-                    getSortedExpenses(sortBy, order),
-                    getAllCategories(),
-                    getFinancialSummary()
+                    safeGet(getSortedExpenses(sortBy, order)),
+                    safeGet(getAllCategories()),
+                    safeGet(getFinancialSummary())
                 ]);
-                setExpenses(expensesData);
-                setCategories(categoriesData);
-                setFinancialSummary(summaryData);
+                setExpenses(expensesData ?? []);
+                setCategories(categoriesData ?? []);
+                setFinancialSummary(summaryData ?? null);
             } catch (err) {
                 console.error("❌ Expenses page error:", err.response?.status, err.response?.data);
                 setError("Failed to load expenses.");
@@ -236,7 +240,9 @@ function ExpensesPage() {
                     <tbody>
                         {paginatedExpenses.length === 0 ? (
                             <tr>
-                                <td colSpan={5} className="text-center text-text-secondary text-sm py-12">No expenses found.</td>
+                                <td colSpan={5} className="text-center text-text-secondary text-sm py-12">
+                                    {expenses.length === 0 ? "No expenses yet — add one to get started." : "No expenses found."}
+                                </td>
                             </tr>
                         ) : (
                             paginatedExpenses.map((expense) => (

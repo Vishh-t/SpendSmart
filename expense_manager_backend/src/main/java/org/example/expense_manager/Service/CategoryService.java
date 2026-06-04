@@ -2,9 +2,11 @@ package org.example.expense_manager.Service;
 
 import lombok.RequiredArgsConstructor;
 import org.example.expense_manager.Entity.Category;
+import org.example.expense_manager.Entity.User;
 import org.example.expense_manager.Exceptions.AlreadyExistsException;
 import org.example.expense_manager.Exceptions.AppException;
 import org.example.expense_manager.Exceptions.NotFoundException;
+import org.example.expense_manager.Exceptions.UnauthorizedUserException;
 import org.example.expense_manager.Repository.CategoryRepo;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -19,26 +21,27 @@ public class CategoryService
 {
     private final CategoryRepo repo;
 
-    public Boolean addCategory(Category category)
+    public Boolean addCategory(Category category, User user)
     {
-        if (repo.existsByCategoryName(category.getCategoryName()))
+        if (repo.existsByCategoryNameAndUser(category.getCategoryName(), user))
         {
             throw new AlreadyExistsException("Category already exists");
         }
+        category.setUser(user);
 
         repo.save(category);
         return TRUE;
 
     }
 
-    public Category getCategoryById(int categoryId)
+    public Category getCategoryById(int categoryId, User user)
     {
-        return repo.findById(categoryId).orElseThrow(() -> new NotFoundException("Category not found "));
+        return repo.findByCategoryIdAndUser(categoryId, user).orElseThrow(() -> new NotFoundException("Category not found "));
     }
 
-    public List<Category> getAllCategories()
+    public List<Category> getAllCategories(User user)
     {
-        List<Category> list = repo.findAll();
+        List<Category> list = repo.findAllByUser(user);
         if (list.isEmpty())
         {
             throw new NotFoundException("No Categories Found...");
@@ -46,12 +49,17 @@ public class CategoryService
         return list;
     }
 
-    public Boolean deleteCategory(int categoryId)
+    public Boolean deleteCategory(int categoryId, User user)
     {
         Category category = repo.findById(categoryId).orElse(null);
         if (category == null)
         {
             throw new NotFoundException("Category not found");
+        }
+
+        if (!category.getUser().getUserId().equals(user.getUserId()))
+        {
+            throw new UnauthorizedUserException("Access Unauthorized!! ");
         }
         try
         {

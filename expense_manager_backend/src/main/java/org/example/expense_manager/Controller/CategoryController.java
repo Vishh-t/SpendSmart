@@ -3,10 +3,14 @@ package org.example.expense_manager.Controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.example.expense_manager.Entity.Category;
+import org.example.expense_manager.Entity.User;
 import org.example.expense_manager.Service.CategoryService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Objects;
 
 @RestController
 @RequiredArgsConstructor
@@ -18,25 +22,29 @@ public class CategoryController
     @PostMapping("/add")
     public ResponseEntity<?> addCategory(@Valid @RequestBody Category category)
     {
-        return new ResponseEntity<>(service.addCategory(category), HttpStatus.CREATED);
+        User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
+        return new ResponseEntity<>(service.addCategory(category, loggedInUser), HttpStatus.CREATED);
     }
 
     @GetMapping("/")
     public ResponseEntity<?> getAllCategories()
     {
-        return new ResponseEntity<>(service.getAllCategories(), HttpStatus.OK);
+        User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
+        return new ResponseEntity<>(service.getAllCategories(loggedInUser), HttpStatus.OK);
     }
 
     @GetMapping("/{categoryId}")
-    public ResponseEntity<?> getCategoryById( @PathVariable int categoryId)
+    public ResponseEntity<?> getCategoryById(@PathVariable int categoryId)
     {
-        return new ResponseEntity<>(service.getCategoryById(categoryId), HttpStatus.OK);
+        User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
+        return new ResponseEntity<>(service.getCategoryById(categoryId, loggedInUser), HttpStatus.OK);
     }
 
     @DeleteMapping("/{categoryId}")
     public ResponseEntity<?> deleteCategory(@PathVariable int categoryId)
     {
-        return new ResponseEntity<>(service.deleteCategory(categoryId), HttpStatus.OK);
+        User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
+        return new ResponseEntity<>(service.deleteCategory(categoryId, loggedInUser), HttpStatus.OK);
     }
 
 }

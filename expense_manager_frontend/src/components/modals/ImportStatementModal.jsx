@@ -262,7 +262,12 @@ function ImportStatementModal({ onClose, onSuccess }) {
         setParseError(null);
         try {
             const data = await parseStatement(file, includeCredits);
-            const enriched = data.map((t, i) => ({ ...t, _id: i, _removed: false }));
+            const enriched = data.map((t, i) => ({
+                ...t,
+                _id: i,
+                _removed: false,
+                date: t.dateTime ? t.dateTime.split("T")[0] : "",
+            }));
             setRows(enriched);
             setScreen("preview");
         } catch (err) {
@@ -292,7 +297,7 @@ function ImportStatementModal({ onClose, onSuccess }) {
                 amount:      r.amount,
                 description: r.description,
                 categoryId:  r.categoryId,
-                dateTime:    r.dateTime,
+                dateTime:    r.date ? r.date + "T00:00:00" : r.dateTime,
                 keyword:     r.keyword,
             }));
             await bulkAddExpenses(toSave);

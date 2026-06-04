@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/expense")
@@ -27,7 +28,7 @@ public class ExpenseController
     @PostMapping("/")
     public ResponseEntity<?> addExpense(@RequestParam int categoryId, @Valid @RequestBody AddExpenseDTO expenseDto)
     {
-        User loggedInUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
         Expense expense = new Expense();
         expense.setDescription(expenseDto.getDescription());
         expense.setAmount(expenseDto.getAmount());
@@ -43,21 +44,21 @@ public class ExpenseController
     @GetMapping("/")
     public ResponseEntity<?> getExpensesByUser()
     {
-        User loggedInUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
         return new ResponseEntity<>(service.getExpensesByUser(loggedInUser), HttpStatus.OK);
     }
 
     @GetMapping("/{expenseId}/Id")
     public ResponseEntity<?> getExpenseById(@PathVariable int expenseId)
     {
-        User loggedInUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
         return new ResponseEntity<>(service.getExpenseById(expenseId, loggedInUser), HttpStatus.OK);
     }
 
     @PutMapping("/{expenseId}")
     public ResponseEntity<?> updateExpense(@PathVariable int expenseId, @Valid @RequestBody UpdateExpenseDTO updateDto)
     {
-        User loggedInUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
         Expense expense = new Expense();
         Integer categoryId = updateDto.getCategoryId();
         expense.setDescription(updateDto.getDescription());
@@ -73,21 +74,21 @@ public class ExpenseController
     @DeleteMapping("/{expenseId}")
     public ResponseEntity<?> deleteExpense(@PathVariable int expenseId)
     {
-        User loggedInUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
         return new ResponseEntity<>(service.deleteExpense(loggedInUser, expenseId), HttpStatus.OK);
     }
 
     @GetMapping("/{categoryId}/category")
     public ResponseEntity<?> getExpensesByCategory(@PathVariable int categoryId)
     {
-        User loggedInUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
         return new ResponseEntity<>(service.getExpensesByCategory(categoryId, loggedInUser), HttpStatus.OK);
     }
 
     @GetMapping("/dateRange")
     public ResponseEntity<?> getExpensesByDateRange(@NotNull @RequestParam LocalDate startDate, @NotNull @RequestParam LocalDate endDate)
     {
-        User loggedInUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
 
         return new ResponseEntity<>(service.getExpensesByDateRange(loggedInUser, startDate, endDate), HttpStatus.OK);
     }
@@ -95,7 +96,7 @@ public class ExpenseController
     @GetMapping("/sorted")
     public ResponseEntity<?> getSortedExpenses(@NotNull @RequestParam String sortBy, @NotNull @RequestParam String order)
     {
-        User loggedInUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
 
         return new ResponseEntity<>(service.getSortedExpenses(loggedInUser, sortBy, order), HttpStatus.OK);
     }
@@ -104,42 +105,42 @@ public class ExpenseController
     public ResponseEntity<?> monthlySummary(@RequestParam @Min(1) @Max(12) int month,
                                             @RequestParam int year)
     {
-        User loggedInUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
         return new ResponseEntity<>(service.monthlySummary(loggedInUser, month, year), HttpStatus.OK);
     }
 
     @DeleteMapping("/{expenseId}/description")
     public ResponseEntity<?> clearDescription(@PathVariable int expenseId)
     {
-        User loggedInUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        return new ResponseEntity<>(service.clearDescription(loggedInUser, expenseId), HttpStatus.OK);
+        User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
+        return new ResponseEntity<>(service.clearDescription(Objects.requireNonNull(loggedInUser), expenseId), HttpStatus.OK);
     }
 
     @GetMapping("/annualSummary")
     public ResponseEntity<?> annualSummary(@RequestParam int year)
     {
-        User loggedInUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
         return new ResponseEntity<>(service.annualSummary(loggedInUser, year), HttpStatus.OK);
     }
 
     @GetMapping("/budgetStatus")
     public ResponseEntity<?> checkBudgetStatus()
     {
-        User loggedInUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        return new ResponseEntity<>(service.checkBudgetStatus(loggedInUser), HttpStatus.OK);
+        User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
+        return new ResponseEntity<>(service.checkBudgetStatus(Objects.requireNonNull(loggedInUser)), HttpStatus.OK);
     }
 
     @GetMapping("/financialSummary")
     public ResponseEntity<?> financialSummary()
     {
-        User loggedInUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
         return new ResponseEntity<>(service.financialSummary(loggedInUser), HttpStatus.OK);
     }
 
     @PostMapping("/bulk")
     public ResponseEntity<?> bulkAddExpenses(@RequestBody List<BulkExpenseItemDTO> items)
     {
-        User loggedInUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
         return new ResponseEntity<>(service.addBulkExpenses(loggedInUser, items), HttpStatus.CREATED);
     }
 

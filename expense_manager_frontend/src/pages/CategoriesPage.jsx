@@ -240,12 +240,16 @@ function CategoriesPage() {
 
     async function fetchData() {
         try {
+            const safeGet = (promise) => promise.catch(err => {
+                if (err.response?.status === 404) return null;
+                throw err;
+            });
             const [cats, summary] = await Promise.all([
-                getAllCategories(),
-                getFinancialSummary()
+                safeGet(getAllCategories()),
+                safeGet(getFinancialSummary())
             ]);
-            setCategories(cats);
-            setFinancialSummary(summary);
+            setCategories(cats ?? []);
+            setFinancialSummary(summary ?? null);
         } catch {
             setError("Failed to load categories.");
         } finally {

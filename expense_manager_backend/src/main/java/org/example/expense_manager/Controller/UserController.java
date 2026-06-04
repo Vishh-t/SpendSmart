@@ -13,6 +13,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.Objects;
 
 @RestController
 @RequiredArgsConstructor
@@ -36,21 +37,21 @@ public class UserController
     @PutMapping("/budget")
     public ResponseEntity<?> updateMonthlyBudget(@RequestParam BigDecimal newBudget)
     {
-        User loggedInUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        return new ResponseEntity<>(service.updateMonthlyBudget(newBudget, loggedInUser), HttpStatus.OK);
+        User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
+        return new ResponseEntity<>(service.updateMonthlyBudget(newBudget, Objects.requireNonNull(loggedInUser)), HttpStatus.OK);
     }
 
     @GetMapping("/")
     public ResponseEntity<?> getUserInfo()
     {
-        User loggedInUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
         return new ResponseEntity<>(service.getUserInfo(loggedInUser), HttpStatus.OK);
     }
 
     @DeleteMapping("/")
     public ResponseEntity<?> deleteUser()
     {
-        User loggedInUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
         return new ResponseEntity<>(service.deleteUser(loggedInUser), HttpStatus.OK);
     }
 

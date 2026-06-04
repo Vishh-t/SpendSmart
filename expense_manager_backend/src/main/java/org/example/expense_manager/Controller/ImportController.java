@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Objects;
 
 @RestController
 @RequiredArgsConstructor
@@ -26,14 +27,14 @@ public class ImportController
     @PostMapping("/parse")
     public ResponseEntity<List<ParsedTransactionDTO>> parseTransactions(@RequestParam MultipartFile file, @RequestParam boolean includeCredits)
     {
-        User loggedInUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
         return new ResponseEntity<>(service.parseStatement(loggedInUser, file, includeCredits), HttpStatus.OK);
     }
 
     @PostMapping("/saveMapping")
     public ResponseEntity<?> saveMapping(@RequestParam String keyword, @RequestParam Integer categoryId)
     {
-        User loggedInUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
         service.saveMapping(loggedInUser, keyword, categoryId);
         return new ResponseEntity<>(HttpStatus.OK);
     }
