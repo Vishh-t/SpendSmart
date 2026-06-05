@@ -1,8 +1,8 @@
 package org.example.expense_manager.Service;
 
-import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.example.expense_manager.DTO.ServiceDTOs.AnomalyDTO;
+import org.example.expense_manager.DTO.ServiceDTOs.MerchantDTO;
 import org.example.expense_manager.Entity.Expense;
 import org.example.expense_manager.Entity.User;
 import org.example.expense_manager.Repository.ExpenseRepo;
@@ -12,21 +12,19 @@ import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
 import java.time.YearMonth;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class InsightsService
 {
-    private final ExpenseRepo repo;
+    private final ExpenseRepo expenseRepo;
 
 
     public List<AnomalyDTO> anomalyDetector(User user, Integer month, Integer year)
     {
-        List<Expense> expenses = repo.findAllByUser(user);
+        List<Expense> expenses = expenseRepo.findAllByUser(user);
 
         YearMonth targetMonth = (month == null || year == null)
                 ? YearMonth.now()
@@ -84,17 +82,15 @@ public class InsightsService
             if (deviationMultiple.compareTo(new BigDecimal("3")) >= 0)
             {
                 severity = "Unusual";
-                opener   = " Unusual spike —";
-            }
-            else if (deviationMultiple.compareTo(new BigDecimal("2.5")) >= 0)
+                opener = "Unusual spike —";
+            } else if (deviationMultiple.compareTo(new BigDecimal("2.5")) >= 0)
             {
                 severity = "Very High";
-                opener   = " Very high —";
-            }
-            else
+                opener = "Very high —";
+            } else
             {
                 severity = "High";
-                opener   = " Heads up —";
+                opener = "Heads up —";
             }
 
             String message = String.format(
@@ -106,5 +102,56 @@ public class InsightsService
         }
 
         return anomalies;
+    }
+
+    public List<MerchantDTO> merchantLeaderboard(User user)
+    {
+        List<Expense> expenses = expenseRepo.findAllByUser(user);
+        Map<String, BigDecimal> spentPerMerchant = new HashMap<>();
+
+        for (var expense : expenses)
+        {
+            if (expense.getKeyword() == null || expense.getKeyword().isBlank()) continue;
+            spentPerMerchant.merge(expense.getKeyword(), expense.getAmount(), BigDecimal::add);
+        }
+
+        Map<String, BigDecimal> sortedMerchants = spentPerMerchant.entrySet()
+                .stream()
+                .sorted(Map.Entry.<String, BigDecimal>comparingByValue().reversed())
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        Map.Entry::getValue,
+                        (e1, e2) -> e1,
+                        LinkedHashMap::new
+                ));
+
+        return getMerchantDTOS(sortedMerchants);
+    }
+
+    private List<MerchantDTO> getMerchantDTOS(Map<String, BigDecimal> sortedMerchants)
+    {
+        List<MerchantDTO> merchants = new ArrayList<>();
+        int rank = 1;
+        BigDecimal total = BigDecimal.ZERO;
+        for (Map.Entry<String, BigDecimal> entry : sortedMerchants.entrySet())
+        {
+            BigDecimal amount = entry.getValue();
+            total = total.add(amount);
+        }
+
+        for (Map.Entry<String, BigDecimal> entry : sortedMerchants.entrySet())
+        {
+            String merchant = entry.getKey();
+            BigDecimal amount = entry.getValue();
+            MerchantDTO merch = new MerchantDTO();
+            merch.setKeyword(merchant);
+            merch.setRank(rank);
+            merch.setTotalSpent(amount);
+            BigDecimal percent = amount.divide(total, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100));
+            merch.setPercentage(percent);
+            rank++;
+            merchants.add(merch);
+        }
+        return merchants;
     }
 }

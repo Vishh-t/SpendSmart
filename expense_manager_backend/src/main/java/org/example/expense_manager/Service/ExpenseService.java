@@ -40,6 +40,7 @@ public class ExpenseService
         category.setCategoryId(expense.getCategory().getCategoryId());
         category.setCategoryName(expense.getCategory().getCategoryName());
         response.setExpenseId(expense.getExpenseId());
+        response.setKeyword(expense.getKeyword());
         response.setDescription(expense.getDescription());
         response.setAmount(expense.getAmount());
         response.setCategory(category);

@@ -1,0 +1,34 @@
+package org.example.expense_manager.Controller;
+
+import lombok.RequiredArgsConstructor;
+import org.example.expense_manager.Entity.User;
+import org.example.expense_manager.Service.InsightsService;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Objects;
+
+@RestController
+@RequestMapping("/insights")
+@RequiredArgsConstructor
+public class InsightsController
+{
+    private final InsightsService service;
+
+    @GetMapping("/anomaly")
+    public ResponseEntity<?> anomalyDetector(@RequestParam(required = false) Integer year, @RequestParam(required = false) Integer month)
+    {
+        User loggedinUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
+        return new ResponseEntity<>(service.anomalyDetector(loggedinUser, month, year), HttpStatus.OK);
+    }
+
+    @GetMapping("/merchantLeaderboard")
+    public ResponseEntity<?> merchantLeaderBoard()
+    {
+        User loggedinUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
+        return new ResponseEntity<>(service.merchantLeaderboard(loggedinUser), HttpStatus.OK);
+    }
+
+}
