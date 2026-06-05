@@ -17,7 +17,7 @@ public class InsightsController
 {
     private final InsightsService service;
 
-    @GetMapping("/anomaly")
+    @GetMapping("/anomalyDetector")
     public ResponseEntity<?> anomalyDetector(@RequestParam(required = false) Integer year, @RequestParam(required = false) Integer month)
     {
         User loggedinUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
@@ -29,6 +29,13 @@ public class InsightsController
     {
         User loggedinUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
         return new ResponseEntity<>(service.merchantLeaderboard(loggedinUser), HttpStatus.OK);
+    }
+
+    @GetMapping("/subscriptionTracker")
+    public ResponseEntity<?> subscriptionTracker()
+    {
+        User loggedinUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
+        return new ResponseEntity<>(service.subscriptionTracker(loggedinUser), HttpStatus.OK);
     }
 
 }

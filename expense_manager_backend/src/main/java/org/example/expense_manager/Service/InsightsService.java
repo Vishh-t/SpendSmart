@@ -3,6 +3,7 @@ package org.example.expense_manager.Service;
 import lombok.RequiredArgsConstructor;
 import org.example.expense_manager.DTO.ServiceDTOs.AnomalyDTO;
 import org.example.expense_manager.DTO.ServiceDTOs.MerchantDTO;
+import org.example.expense_manager.DTO.ServiceDTOs.RecurringExpenseDTO;
 import org.example.expense_manager.Entity.Expense;
 import org.example.expense_manager.Entity.User;
 import org.example.expense_manager.Repository.ExpenseRepo;
@@ -11,7 +12,10 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
+import java.time.LocalDateTime;
+import java.time.Year;
 import java.time.YearMonth;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -154,4 +158,68 @@ public class InsightsService
         }
         return merchants;
     }
+
+    public List<RecurringExpenseDTO> subscriptionTracker(User user)
+    {
+        List<Expense> expenses = expenseRepo.findAllByUser(user);
+
+        Map<String, List<Expense>> merchantWiseExpenses = new HashMap<>();
+
+        List<RecurringExpenseDTO> recurringExpenses = new ArrayList<>();
+
+        for (var expense : expenses)
+        {
+
+            if (expense.getKeyword() == null || expense.getKeyword().isBlank()) continue;
+
+            merchantWiseExpenses.computeIfAbsent(expense.getKeyword(), k -> new ArrayList<>()).add(expense);
+
+        }
+
+        for (Map.Entry<String, List<Expense>> entry : merchantWiseExpenses.entrySet())
+        {
+            List<Expense> spends = entry.getValue();
+            if (spends.size() < 2)
+            {
+                continue;
+            }
+
+            spends.sort(Comparator.comparing(Expense::getExpenseTimestamp));
+            long averageGap = 0;
+
+            for (int i = 0; i < spends.size() - 1; i++)
+            {
+                long gap = ChronoUnit.DAYS.between(
+                        spends.get(i).getExpenseTimestamp().toLocalDate(),
+                        spends.get(i + 1).getExpenseTimestamp().toLocalDate());
+                averageGap += gap;
+
+            }
+
+            averageGap /= (spends.size() - 1);
+
+            if (averageGap >= 25 && averageGap <= 35)
+            {
+                RecurringExpenseDTO recurringExpense = new RecurringExpenseDTO();
+                BigDecimal averageAmount = BigDecimal.ZERO;
+                for (Expense spend : spends)
+                {
+                    averageAmount = averageAmount.add(spend.getAmount());
+                }
+                averageAmount = averageAmount.divide(new BigDecimal(spends.size()), 4, RoundingMode.HALF_UP);
+                recurringExpense.setKeyword(entry.getKey());
+                recurringExpense.setAverageAmount(averageAmount);
+                recurringExpense.setAverageGap(averageGap);
+                recurringExpense.setLastChargedDate(spends.getLast().getExpenseTimestamp().toLocalDate());
+                recurringExpense.setNextExpectedChargeDate(spends.getLast().getExpenseTimestamp().toLocalDate().plusDays(averageGap));
+                recurringExpense.setAnnualCost(averageAmount.divide(new BigDecimal(averageGap), 4, RoundingMode.HALF_UP)
+                        .multiply(new BigDecimal(Year.of(LocalDateTime.now().getYear()).length())));
+
+                recurringExpenses.add(recurringExpense);
+            }
+        }
+
+        return recurringExpenses;
+    }
 }
+
