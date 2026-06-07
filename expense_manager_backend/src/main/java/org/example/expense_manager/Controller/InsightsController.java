@@ -38,4 +38,11 @@ public class InsightsController
         return new ResponseEntity<>(service.subscriptionTracker(loggedinUser), HttpStatus.OK);
     }
 
+    @GetMapping("/weeklyDNA")
+    public ResponseEntity<?> weeklyDNA(@RequestParam(required = false) Integer months)
+    {
+        User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
+        return new ResponseEntity<>(service.weeklyDNA(loggedInUser, months), HttpStatus.OK);
+    }
+
 }

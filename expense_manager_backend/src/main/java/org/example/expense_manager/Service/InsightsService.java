@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.example.expense_manager.DTO.ServiceDTOs.AnomalyDTO;
 import org.example.expense_manager.DTO.ServiceDTOs.MerchantDTO;
 import org.example.expense_manager.DTO.ServiceDTOs.RecurringExpenseDTO;
+import org.example.expense_manager.DTO.ServiceDTOs.WeeklyDNADTO;
 import org.example.expense_manager.Entity.Expense;
 import org.example.expense_manager.Entity.User;
 import org.example.expense_manager.Repository.ExpenseRepo;
@@ -12,9 +13,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
-import java.time.LocalDateTime;
-import java.time.Year;
-import java.time.YearMonth;
+import java.time.*;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -221,5 +220,58 @@ public class InsightsService
 
         return recurringExpenses;
     }
+
+    public List<WeeklyDNADTO> weeklyDNA(User user , Integer months )
+    {
+        LocalDateTime start = (months != null) ? LocalDateTime.now().minusMonths(months) : LocalDateTime.MIN;
+        LocalDateTime end = LocalDateTime.now();
+        List<Expense> expenses = expenseRepo.findAllByUserAndExpenseTimestampBetween(user, start, end);
+
+        Map<DayOfWeek, List<Expense>> dayWiseData = new HashMap<>();
+
+        List<WeeklyDNADTO> result = new ArrayList<>();
+
+        for (var expense : expenses)
+        {
+            dayWiseData.computeIfAbsent(expense.getExpenseTimestamp().getDayOfWeek(), k -> new ArrayList<>()).add(expense);
+        }
+
+        Map<DayOfWeek, Set<LocalDate>> distinctDates = new HashMap<>();
+
+        for (Map.Entry<DayOfWeek, List<Expense>> entry : dayWiseData.entrySet())
+        {
+
+            List<Expense> dayWiseExpenses = entry.getValue();
+
+            WeeklyDNADTO dto = new WeeklyDNADTO();
+
+            BigDecimal totalSpent = BigDecimal.ZERO;
+            BigDecimal averageSpent;
+            int transactionCount = dayWiseExpenses.size();
+
+            for (var expense : dayWiseExpenses)
+            {
+                totalSpent = totalSpent.add(expense.getAmount());
+                distinctDates.computeIfAbsent(
+                        entry.getKey(), k -> new HashSet<>()).add(expense.getExpenseTimestamp().toLocalDate());
+
+            }
+
+            int numOfDays = distinctDates.getOrDefault(entry.getKey(), new HashSet<>()).size();
+
+            averageSpent = totalSpent.divide(new BigDecimal(numOfDays), 4, RoundingMode.HALF_UP);
+
+            dto.setDay(entry.getKey());
+            dto.setAverageSpend(averageSpent);
+            dto.setTotalSpend(totalSpent);
+            dto.setTransactionCount(transactionCount);
+
+            result.add(dto);
+
+        }
+        result.sort(Comparator.comparing(dto -> dto.getDay().getValue()));
+        return result;
+    }
+
 }
 

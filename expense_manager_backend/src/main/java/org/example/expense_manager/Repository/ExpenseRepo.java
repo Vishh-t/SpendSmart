@@ -27,4 +27,5 @@ public interface ExpenseRepo extends JpaRepository<Expense, Integer>
     boolean existsByUserAndAmountAndKeywordAndExpenseTimestamp(
             User user, BigDecimal amount, String keyword, LocalDateTime dateTime
     );
+
 }
