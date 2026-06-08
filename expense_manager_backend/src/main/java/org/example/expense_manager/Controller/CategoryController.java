@@ -62,4 +62,6 @@ public class CategoryController
         return new ResponseEntity<>(service.categoryBudgetStatus(loggedInUser), HttpStatus.OK);
     }
 
+
+
 }

@@ -97,7 +97,7 @@ public class InsightsService
                     opener, categoryName, currentSpend, mean
             );
 
-            anomalies.add(new AnomalyDTO(categoryName, currentSpend, mean, stdDev, deviationMultiple, severity, message));
+            anomalies.add(new AnomalyDTO(categoryName, currentSpend, mean, stdDev, deviationMultiple, message, severity));
         }
 
         return anomalies;
