@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.Objects;
 
 @RestController
@@ -45,6 +46,20 @@ public class CategoryController
     {
         User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
         return new ResponseEntity<>(service.deleteCategory(categoryId, loggedInUser), HttpStatus.OK);
+    }
+
+    @PatchMapping("/{categoryId}/budget")
+    public ResponseEntity<?> setCategoryBudget(@PathVariable int categoryId, @RequestParam BigDecimal monthlyCategoryBudget)
+    {
+        User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
+        return new ResponseEntity<>(service.setBudget(categoryId, Objects.requireNonNull(loggedInUser), monthlyCategoryBudget), HttpStatus.OK);
+    }
+
+    @GetMapping("/categoryBudgetSummary")
+    public ResponseEntity<?> categoryBudgetSummary()
+    {
+        User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
+        return new ResponseEntity<>(service.categoryBudgetStatus(loggedInUser), HttpStatus.OK);
     }
 
 }

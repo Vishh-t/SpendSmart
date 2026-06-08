@@ -21,4 +21,5 @@ public interface CategoryRepo extends JpaRepository<Category, Integer>
     List<Category> findAllByUser(User user);
 
 
+    Category findByCategoryNameAndUser(String key, User user);
 }
