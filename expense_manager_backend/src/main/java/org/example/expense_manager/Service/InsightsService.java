@@ -5,6 +5,7 @@ import org.example.expense_manager.DTO.ServiceDTOs.*;
 import org.example.expense_manager.Entity.Expense;
 import org.example.expense_manager.Entity.User;
 import org.example.expense_manager.Repository.ExpenseRepo;
+import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -310,8 +311,7 @@ public class InsightsService
         if (budgetRemaining.compareTo(BigDecimal.ZERO) <= 0 || dailyBurnRate.compareTo(BigDecimal.ZERO) == 0)
         {
             daysUntilBudgetExhausted = 0;
-        }
-        else
+        } else
         {
             daysUntilBudgetExhausted = budgetRemaining.divide(dailyBurnRate, 0, RoundingMode.FLOOR).intValue();
         }
@@ -338,6 +338,91 @@ public class InsightsService
         dto.setProjectedMonthEndSpend(projectedMonthEndSpend);
         dto.setDaysUntilBudgetExhausted(daysUntilBudgetExhausted);
 
+        return dto;
+    }
+
+    public List<MonthlyDeltaDTO> monthlyDelta(User user, Integer month1, Integer year1, Integer month2, Integer year2)
+    {
+        YearMonth target = YearMonth.now();
+        YearMonth previous = target.minusMonths(1);
+
+        if (month1 != null && month2 != null && year1 != null && year2 != null)
+        {
+            target = YearMonth.of(year1, month1);
+            previous = YearMonth.of(year2, month2);
+        } else if (month1 != null && year1 != null && month2 == null && year2 == null)
+        {
+            target = YearMonth.of(year1, month1);
+        } else if (month1 == null && year1 == null && month2 != null && year2 != null)
+        {
+            previous = YearMonth.of(year2, month2);
+        }
+
+        List<Expense> targetMonthExpenses = expenseRepo.findAllByUserAndExpenseTimestampBetween(user,
+                target.atDay(1).atStartOfDay(), target.atEndOfMonth().atTime(LocalTime.MAX));
+
+        List<Expense> prevMonthExpenses = expenseRepo.findAllByUserAndExpenseTimestampBetween(user,
+                previous.atDay(1).atStartOfDay(), previous.atEndOfMonth().atTime(LocalTime.MAX));
+
+        Map<String, BigDecimal> targetMonthSpend = new HashMap<>();
+        Map<String, BigDecimal> previousMonthSpend = new HashMap<>();
+
+        for (var expense : targetMonthExpenses)
+        {
+            targetMonthSpend.merge(expense.getCategory().getCategoryName(), expense.getAmount(), BigDecimal::add);
+        }
+
+        for (var expense : prevMonthExpenses)
+        {
+            previousMonthSpend.merge(expense.getCategory().getCategoryName(), expense.getAmount(), BigDecimal::add);
+        }
+
+        Set<String> allCategories = new HashSet<>();
+        allCategories.addAll(targetMonthSpend.keySet());
+        allCategories.addAll(previousMonthSpend.keySet());
+
+        List<MonthlyDeltaDTO> results = new ArrayList<>();
+
+        for (var category : allCategories)
+        {
+            BigDecimal targetAmount = targetMonthSpend.getOrDefault(category, BigDecimal.ZERO);
+            BigDecimal previousAmount = previousMonthSpend.getOrDefault(category, BigDecimal.ZERO);
+
+            MonthlyDeltaDTO dto = getMonthlyDeltaDTO(category, targetAmount, previousAmount);
+            results.add(dto);
+        }
+
+        return results;
+
+    }
+
+    private static @NonNull MonthlyDeltaDTO getMonthlyDeltaDTO(String category, BigDecimal targetAmount, BigDecimal previousAmount)
+    {
+        MonthlyDeltaDTO dto = new MonthlyDeltaDTO();
+        BigDecimal delta = ((targetAmount.subtract(previousAmount)).divide(previousAmount, 4, RoundingMode.HALF_UP)).multiply(new BigDecimal("100"));
+        String trend;
+        if (previousAmount.compareTo(BigDecimal.ZERO) == 0)
+        {
+            trend = "NEW";
+        } else if (targetAmount.compareTo(BigDecimal.ZERO) == 0)
+        {
+            trend = "GONE";
+        } else if (targetAmount.compareTo(previousAmount) > 0)
+        {
+            trend = "UP";
+        } else if (previousAmount.compareTo(targetAmount) > 0)
+        {
+            trend = "DOWN";
+        } else
+        {
+            trend = "CONSISTENT";
+        }
+
+        dto.setCategory(category);
+        dto.setDeltaPercentage(delta);
+        dto.setTrend(trend);
+        dto.setLastMonthSpend(previousAmount);
+        dto.setCurrentMonthSpend(targetAmount);
         return dto;
     }
 

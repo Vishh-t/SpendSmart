@@ -51,4 +51,12 @@ public class InsightsController
         User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
         return new ResponseEntity<>(service.dailyBurnRate(loggedInUser), HttpStatus.OK);
     }
+
+    @GetMapping("/monthlyDelta")
+    public ResponseEntity<?> monthlyDelta(@RequestParam(required = false) Integer month1, @RequestParam(required = false) Integer month2, @RequestParam(required = false) Integer year1, @RequestParam(required = false) Integer year2)
+    {
+        User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
+        return new ResponseEntity<>(service.monthlyDelta(loggedInUser, month1, year1, month2, year2), HttpStatus.OK);
+    }
+
 }
