@@ -5,9 +5,7 @@ import org.example.expense_manager.DTO.ServiceDTOs.*;
 import org.example.expense_manager.Entity.Expense;
 import org.example.expense_manager.Entity.User;
 import org.example.expense_manager.Repository.ExpenseRepo;
-import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
-
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
@@ -389,6 +387,11 @@ public class InsightsService
             BigDecimal previousAmount = previousMonthSpend.getOrDefault(category, BigDecimal.ZERO);
 
             MonthlyDeltaDTO dto = getMonthlyDeltaDTO(category, targetAmount, previousAmount);
+
+            if (dto.getTrend().equals("NEW") || dto.getTrend().equals("GONE"))
+            {
+                dto.setDeltaPercentage(null);
+            }
             results.add(dto);
         }
 
@@ -396,10 +399,12 @@ public class InsightsService
 
     }
 
-    private static @NonNull MonthlyDeltaDTO getMonthlyDeltaDTO(String category, BigDecimal targetAmount, BigDecimal previousAmount)
+    private static MonthlyDeltaDTO getMonthlyDeltaDTO(String category, BigDecimal targetAmount, BigDecimal previousAmount)
     {
         MonthlyDeltaDTO dto = new MonthlyDeltaDTO();
-        BigDecimal delta = ((targetAmount.subtract(previousAmount)).divide(previousAmount, 4, RoundingMode.HALF_UP)).multiply(new BigDecimal("100"));
+        BigDecimal delta = (previousAmount.compareTo(BigDecimal.ZERO) == 0)
+                ? BigDecimal.ZERO
+                : ((targetAmount.subtract(previousAmount)).divide(previousAmount, 4, RoundingMode.HALF_UP)).multiply(new BigDecimal("100"));
         String trend;
         if (previousAmount.compareTo(BigDecimal.ZERO) == 0)
         {
