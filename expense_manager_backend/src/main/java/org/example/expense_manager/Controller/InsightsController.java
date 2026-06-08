@@ -45,4 +45,10 @@ public class InsightsController
         return new ResponseEntity<>(service.weeklyDNA(loggedInUser, months), HttpStatus.OK);
     }
 
+    @GetMapping("/dailyBurnRate")
+    public ResponseEntity<?> dailyBurnRate()
+    {
+        User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
+        return new ResponseEntity<>(service.dailyBurnRate(loggedInUser), HttpStatus.OK);
+    }
 }

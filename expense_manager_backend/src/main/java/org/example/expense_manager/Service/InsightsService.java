@@ -1,10 +1,7 @@
 package org.example.expense_manager.Service;
 
 import lombok.RequiredArgsConstructor;
-import org.example.expense_manager.DTO.ServiceDTOs.AnomalyDTO;
-import org.example.expense_manager.DTO.ServiceDTOs.MerchantDTO;
-import org.example.expense_manager.DTO.ServiceDTOs.RecurringExpenseDTO;
-import org.example.expense_manager.DTO.ServiceDTOs.WeeklyDNADTO;
+import org.example.expense_manager.DTO.ServiceDTOs.*;
 import org.example.expense_manager.Entity.Expense;
 import org.example.expense_manager.Entity.User;
 import org.example.expense_manager.Repository.ExpenseRepo;
@@ -221,7 +218,7 @@ public class InsightsService
         return recurringExpenses;
     }
 
-    public List<WeeklyDNADTO> weeklyDNA(User user , Integer months )
+    public List<WeeklyDNADTO> weeklyDNA(User user, Integer months)
     {
         LocalDateTime start = (months != null) ? LocalDateTime.now().minusMonths(months) : LocalDateTime.MIN;
         LocalDateTime end = LocalDateTime.now();
@@ -272,6 +269,78 @@ public class InsightsService
         result.sort(Comparator.comparing(dto -> dto.getDay().getValue()));
         return result;
     }
+
+    public BurnRateDTO dailyBurnRate(User user)
+    {
+
+        LocalDateTime end = LocalDateTime.now();
+        LocalDateTime start = YearMonth.now().atDay(1).atStartOfDay();
+
+        List<Expense> expenses = expenseRepo.findAllByUserAndExpenseTimestampBetween(user, start, end);
+
+        Map<LocalDate, BigDecimal> track = new HashMap<>();
+
+        for (var expense : expenses)
+        {
+            track.merge(expense.getExpenseTimestamp().toLocalDate(), expense.getAmount(), BigDecimal::add);
+        }
+
+        BigDecimal alpha = new BigDecimal("0.3");
+        BigDecimal prevEwa = BigDecimal.ZERO;
+        BigDecimal ewa = BigDecimal.ZERO;
+        BigDecimal totalSpentThisMonth = BigDecimal.ZERO;
+
+        List<LocalDate> sortedDays = new ArrayList<>(track.keySet());
+        Collections.sort(sortedDays);
+
+        for (LocalDate date : sortedDays)
+        {
+            BigDecimal daySpend = track.get(date);
+            ewa = alpha.multiply(daySpend).add(BigDecimal.ONE.subtract(alpha).multiply(prevEwa));
+            prevEwa = ewa;
+            totalSpentThisMonth = totalSpentThisMonth.add(daySpend);
+        }
+
+        BurnRateDTO dto = new BurnRateDTO();
+        BigDecimal dailyBurnRate = ewa;
+        BigDecimal budgetRemaining = user.getMonthlyBudget().subtract(totalSpentThisMonth);
+        BigDecimal projectedMonthEndSpend = totalSpentThisMonth.add(dailyBurnRate.multiply(new BigDecimal(YearMonth.now().lengthOfMonth() - LocalDate.now().getDayOfMonth())));
+
+        int daysUntilBudgetExhausted;
+        if (budgetRemaining.compareTo(BigDecimal.ZERO) <= 0 || dailyBurnRate.compareTo(BigDecimal.ZERO) == 0)
+        {
+            daysUntilBudgetExhausted = 0;
+        }
+        else
+        {
+            daysUntilBudgetExhausted = budgetRemaining.divide(dailyBurnRate, 0, RoundingMode.FLOOR).intValue();
+        }
+
+        BigDecimal projectedSurplus = user.getMonthlyBudget().subtract(projectedMonthEndSpend);
+
+        String status;
+
+        if (budgetRemaining.compareTo(BigDecimal.ZERO) < 0)
+        {
+            status = "EXCEEDED";
+        } else if (projectedMonthEndSpend.compareTo(user.getMonthlyBudget()) > 0)
+        {
+            status = "WARNING";
+        } else
+        {
+            status = "ON_TRACK";
+        }
+
+        dto.setDailyBurnRate(dailyBurnRate);
+        dto.setStatus(status);
+        dto.setBudgetRemaining(budgetRemaining);
+        dto.setProjectedSurplus(projectedSurplus);
+        dto.setProjectedMonthEndSpend(projectedMonthEndSpend);
+        dto.setDaysUntilBudgetExhausted(daysUntilBudgetExhausted);
+
+        return dto;
+    }
+
 
 }
 
