@@ -19,6 +19,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 import tools.jackson.databind.JsonNode;
@@ -42,13 +43,16 @@ public class ImportService
     @Value("${gemini.api.url}")
     private String api_url;
 
+    @Value("${gemini.api.fallback.url}")
+    private String api_fallback_url;
+
     final private ExpenseRepo expenseRepo;
-
     final private CategoryRepo categoryRepo;
-
     final private UserCategoryMappingRepo userCategoryMappingRepo;
-
     final private RestTemplate template;
+
+    private static final int  MAX_RETRIES   = 3;       // 3 attempts per model
+    private static final long INITIAL_DELAY = 3000L;   // 3s → 6s → 12s
 
     private static final String GEMINI_PROMPT = """
             You must respond with ZERO creativity. Be purely deterministic and analytical.
@@ -258,7 +262,8 @@ public class ImportService
         {
             PDFTextStripper stripper = new PDFTextStripper();
             return stripper.getText(document);
-        } catch (Exception ex)
+        }
+        catch (Exception ex)
         {
             throw new AppException("Could not read PDF");
         }
@@ -266,44 +271,108 @@ public class ImportService
 
     private String stripSensitiveData(String text)
     {
-        String stripped = text.replaceAll("\\b\\d{10,16}\\b", "[REMOVED]").replaceAll("[A-Z]{4}0[A-Z0-9]{6}", "[REMOVED]");
+        String stripped = text
+                .replaceAll("\\b\\d{10,16}\\b", "[REMOVED]")
+                .replaceAll("[A-Z]{4}0[A-Z0-9]{6}", "[REMOVED]");
         System.out.println("Stripped text: " + stripped);
         return stripped;
     }
 
     private String normalizeKeyword(String rawVendor)
     {
-        return rawVendor.toLowerCase().replaceAll("\\b(pvt|ltd|private|limited|india|payment|services|enterprise|enterprises)\\b", "").replaceAll("\\s+", " ").trim();
+        return rawVendor.toLowerCase()
+                .replaceAll("\\b(pvt|ltd|private|limited|india|payment|services|enterprise|enterprises)\\b", "")
+                .replaceAll("\\s+", " ")
+                .trim();
     }
 
     private boolean isDuplicate(User user, BigDecimal amount, String keyword, LocalDateTime dateTime)
     {
         if (keyword == null) return false;
-
         boolean result = expenseRepo.existsByUserAndAmountAndKeywordAndExpenseTimestamp(user, amount, keyword, dateTime);
         System.out.println("isDuplicate result: " + result + " for amount=" + amount + " keyword=" + keyword + " dateTime=" + dateTime);
         return result;
     }
 
-    private String callGemini(List<Category> categoryList, String statementText, boolean includeCredits)
+    /**
+     * Tries a single URL with up to MAX_RETRIES attempts and exponential backoff.
+     * Returns the response body on success.
+     * Throws AppException if all retries fail with 503/529.
+     * Rethrows immediately for any other error code.
+     */
+    private String tryUrl(String url, HttpEntity<Map<String, Object>> entity, String modelLabel)
     {
+        long delayMs = INITIAL_DELAY;
 
-        // converting the content of a page into one string
-        StringBuilder categories = new StringBuilder();
-
-        for (Category category : categoryList)
+        for (int attempt = 1; attempt <= MAX_RETRIES; attempt++)
         {
-            categories.append(category.getCategoryId() + " : " + category.getCategoryName() + "\n");
+            try
+            {
+                String response = template.postForObject(url + "?key=" + api_key, entity, String.class);
+                System.out.printf("[Gemini] %s succeeded on attempt %d%n", modelLabel, attempt);
+                return response;
+            }
+            catch (HttpServerErrorException e)
+            {
+                int code = e.getStatusCode().value();
+                boolean isOverload = code == 503 || code == 529;
+
+                if (isOverload && attempt < MAX_RETRIES)
+                {
+                    System.out.printf("[Gemini] %s got %d on attempt %d/%d — retrying in %.0fs%n",
+                            modelLabel, code, attempt, MAX_RETRIES, delayMs / 1000.0);
+                    try { Thread.sleep(delayMs); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+                    delayMs *= 2;
+                }
+                else if (isOverload)
+                {
+                    // exhausted retries for this model — signal caller to try fallback
+                    System.out.printf("[Gemini] %s exhausted all %d retries.%n", modelLabel, MAX_RETRIES);
+                    throw e;
+                }
+                else
+                {
+                    // non-retryable error — fail immediately
+                    throw new AppException("Gemini API error (" + modelLabel + "): " + e.getMessage());
+                }
+            }
         }
 
-        // chunking pages
+        throw new AppException("Gemini retry loop exhausted unexpectedly (" + modelLabel + ").");
+    }
+
+    /**
+     * Calls Gemini with primary model first, falls back to flash-lite if overloaded.
+     */
+    private String callGeminiWithFallback(HttpEntity<Map<String, Object>> entity)
+    {
+        try
+        {
+            return tryUrl(api_url, entity, "gemini-2.5-flash (primary)");
+        }
+        catch (HttpServerErrorException e)
+        {
+            int code = e.getStatusCode().value();
+            if (code == 503 || code == 529)
+            {
+                System.out.println("[Gemini] Primary model overloaded — falling back to gemini-2.5-flash-lite");
+                return tryUrl(api_fallback_url, entity, "gemini-2.5-flash-lite (fallback)");
+            }
+            throw new AppException("Gemini API error: " + e.getMessage());
+        }
+    }
+
+    private String callGemini(List<Category> categoryList, String statementText, boolean includeCredits)
+    {
+        StringBuilder categories = new StringBuilder();
+        for (Category category : categoryList)
+        {
+            categories.append(category.getCategoryId()).append(" : ").append(category.getCategoryName()).append("\n");
+        }
 
         String[] pages = statementText.split("\f");
-
         StringBuilder text = new StringBuilder();
-
         StringBuilder allResponses = new StringBuilder();
-
         ObjectMapper mapper = new ObjectMapper();
 
         for (int i = 0; i < pages.length; i = i + 5)
@@ -313,10 +382,11 @@ public class ImportService
                 text.append(pages[j]);
             }
 
-            // changing the prompt
-            String finalPrompt = GEMINI_PROMPT.replace("{categoryList}", categories.toString()).replace("{includeCredits}", String.valueOf(includeCredits)).replace("{statementText}", text);
+            String finalPrompt = GEMINI_PROMPT
+                    .replace("{categoryList}", categories.toString())
+                    .replace("{includeCredits}", String.valueOf(includeCredits))
+                    .replace("{statementText}", text);
 
-            // building the standard response body
             Map<String, Object> part = new HashMap<>();
             part.put("text", finalPrompt);
 
@@ -331,7 +401,7 @@ public class ImportService
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
-            String responseBody = template.postForObject(api_url + "?key=" + api_key, entity, String.class);
+            String responseBody = callGeminiWithFallback(entity);
             System.out.println("Gemini raw response: " + responseBody);
 
             try
@@ -345,26 +415,24 @@ public class ImportService
                 {
                     allResponses.append(chunkTransactions);
                 }
-            } catch (Exception e)
-            {
-                throw new AppException("Gemini API call failed: " + e.getMessage());
             }
+            catch (Exception e)
+            {
+                throw new AppException("Gemini response parsing failed: " + e.getMessage());
+            }
+
             text.setLength(0);
         }
 
         return allResponses.toString();
-
     }
 
     private List<ParsedTransactionDTO> parseGeminiResponse(String rawResponse)
     {
         try
         {
-
             ObjectMapper mapper = new ObjectMapper();
-
             String mergedJSON = rawResponse.replace("][", ",");
-
             JsonNode transactions = mapper.readTree(mergedJSON);
 
             List<ParsedTransactionDTO> results = new ArrayList<>();
@@ -372,26 +440,18 @@ public class ImportService
             for (JsonNode transaction : transactions)
             {
                 String description = transaction.path("description").textValue();
-
                 Integer categoryId = transaction.path("categoryId").isNull() ? null : transaction.path("categoryId").intValue();
-
                 Double confidenceScore = transaction.path("confidenceScore").doubleValue();
 
-                String rawAmount = transaction.path("amount").toString();
-                rawAmount = rawAmount.replaceAll("[^0-9.]", "");
+                String rawAmount = transaction.path("amount").toString().replaceAll("[^0-9.]", "");
                 BigDecimal amount = new BigDecimal(rawAmount);
 
                 String rawDate = transaction.path("date").textValue();
                 String rawTime = transaction.path("time").textValue();
 
-                LocalDateTime dateTime;
-                if (rawTime != null)
-                {
-                    dateTime = LocalDateTime.parse(rawDate + "T" + rawTime + ":00");
-                } else
-                {
-                    dateTime = LocalDate.parse(rawDate).atStartOfDay();
-                }
+                LocalDateTime dateTime = (rawTime != null)
+                        ? LocalDateTime.parse(rawDate + "T" + rawTime + ":00")
+                        : LocalDate.parse(rawDate).atStartOfDay();
 
                 String keyword = normalizeKeyword(transaction.path("vendor").textValue());
 
@@ -402,34 +462,29 @@ public class ImportService
                 result.setKeyword(keyword);
                 result.setCategoryId(categoryId);
                 result.setConfidenceScore(confidenceScore);
-
                 results.add(result);
             }
             return results;
-        } catch (Exception e)
+        }
+        catch (Exception e)
         {
             throw new AppException("Failed to parse Gemini response");
         }
-
     }
 
     private List<ParsedTransactionDTO> applyUserMappings(User user, List<ParsedTransactionDTO> transactions)
     {
         List<UserCategoryMapping> mappings = userCategoryMappingRepo.findAllByUser(user);
-
         HashMap<String, Integer> map = new HashMap<>();
-
         for (UserCategoryMapping mapping : mappings)
         {
             map.put(mapping.getKeyword(), mapping.getCategory().getCategoryId());
         }
-
         for (var transaction : transactions)
         {
             if (map.containsKey(transaction.getKeyword()))
             {
                 transaction.setCategoryId(map.get(transaction.getKeyword()));
-
             }
         }
         return transactions;
@@ -439,13 +494,10 @@ public class ImportService
     {
         String text = extractTextFromPdf(file);
         String strippedText = stripSensitiveData(text);
-
         List<Category> categories = categoryRepo.findAllByUser(user);
 
         String rawStatements = callGemini(categories, strippedText, includeCredits);
-
         List<ParsedTransactionDTO> statements = parseGeminiResponse(rawStatements);
-
         List<ParsedTransactionDTO> parsedStatements = applyUserMappings(user, statements);
 
         for (var trans : parsedStatements)
@@ -455,7 +507,6 @@ public class ImportService
                 trans.setDuplicate(true);
             }
         }
-
         return parsedStatements;
     }
 
@@ -463,13 +514,13 @@ public class ImportService
     {
         if (!userCategoryMappingRepo.existsByKeywordAndUser(keyword, user))
         {
-            Category category = categoryRepo.findById(categoryId).orElseThrow(() -> new NotFoundException("Category not found "));
+            Category category = categoryRepo.findById(categoryId)
+                    .orElseThrow(() -> new NotFoundException("Category not found"));
             UserCategoryMapping categoryMapping = new UserCategoryMapping();
             categoryMapping.setCategory(category);
             categoryMapping.setUser(user);
             categoryMapping.setKeyword(keyword);
             userCategoryMappingRepo.save(categoryMapping);
         }
-
     }
 }

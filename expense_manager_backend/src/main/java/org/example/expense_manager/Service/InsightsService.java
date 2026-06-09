@@ -56,7 +56,18 @@ public class InsightsService
                     historical.add(m.getValue());
             }
 
-            if (historical.size() < 2) continue;
+            // Not enough historical data — surface it instead of silently skipping
+            if (historical.size() < 2)
+            {
+                AnomalyDTO dto = new AnomalyDTO();
+                dto.setCategoryName(categoryName);
+                dto.setCurrentMonthSpend(currentSpend);
+                dto.setMessage("Not enough historical data to detect anomalies for " + categoryName + " — need at least 2 previous months.");
+                dto.setSeverity("INSUFFICIENT_DATA");
+                dto.setInsufficientData(true);
+                anomalies.add(dto);
+                continue;
+            }
 
             BigDecimal sum = historical.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
             BigDecimal mean = sum.divide(BigDecimal.valueOf(historical.size()), 4, RoundingMode.HALF_UP);
@@ -97,7 +108,16 @@ public class InsightsService
                     opener, categoryName, currentSpend, mean
             );
 
-            anomalies.add(new AnomalyDTO(categoryName, currentSpend, mean, stdDev, deviationMultiple, message, severity));
+            AnomalyDTO dto = new AnomalyDTO();
+            dto.setCategoryName(categoryName);
+            dto.setCurrentMonthSpend(currentSpend);
+            dto.setHistoricalMean(mean);
+            dto.setHistoricalStdDeviation(stdDev);
+            dto.setDeviationMultiple(deviationMultiple);
+            dto.setMessage(message);
+            dto.setSeverity(severity);
+            dto.setInsufficientData(false);
+            anomalies.add(dto);
         }
 
         return anomalies;
@@ -435,4 +455,3 @@ public class InsightsService
 
 
 }
-

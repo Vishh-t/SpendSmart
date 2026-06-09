@@ -1,11 +1,13 @@
 import { useLocation, Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
-import { LayoutDashboard, Receipt, Tag, User, Plus, LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { LayoutDashboard, Receipt, Tag, User, Plus, LogOut, PanelLeftClose, PanelLeftOpen, LineChart } from "lucide-react";
 
+// ── Added the Insights path and LineChart icon here ──
 const navLinks = [
     { path: "/dashboard",  label: "Dashboard",  icon: <LayoutDashboard size={18} /> },
     { path: "/expenses",   label: "Expenses",   icon: <Receipt size={18} /> },
     { path: "/categories", label: "Categories", icon: <Tag size={18} /> },
+    { path: "/insights",   label: "Insights",   icon: <LineChart size={18} /> },
     { path: "/profile",    label: "Profile",    icon: <User size={18} /> },
 ];
 

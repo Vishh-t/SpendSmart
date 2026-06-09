@@ -1,5 +1,6 @@
 package org.example.expense_manager.DTO.ServiceDTOs;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
@@ -8,15 +9,15 @@ import java.math.BigDecimal;
 
 @Data
 @NoArgsConstructor
-@RequiredArgsConstructor
+@AllArgsConstructor
 public class MerchantDTO
 {
-    String keyword;
+     private String keyword;
 
-    BigDecimal totalSpent;
+     private BigDecimal totalSpent;
 
-    Integer rank;
+     private Integer rank;
 
-    BigDecimal percentage;
+     private BigDecimal percentage;
 
 }

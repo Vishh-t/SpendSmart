@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import {
     X, Upload, FileText, Loader2, ChevronDown,
     AlertTriangle, CheckCircle2, Trash2, ShieldAlert,
-    ToggleLeft, ToggleRight, ArrowLeft, Sparkles, Plus, CalendarDays
+    ToggleLeft, ToggleRight, ArrowLeft, Sparkles, Plus, CalendarDays, Search
 } from "lucide-react";
 import { parseStatement, saveMapping, bulkAddExpenses } from "../../services/importService.js";
 import { getAllCategories, addCategory } from "../../services/categoryService.js";
@@ -219,11 +219,12 @@ function ImportStatementModal({ onClose, onSuccess }) {
     const [parseError,     setParseError]     = useState(null);
     const fileInputRef = useRef(null);
 
-    const [rows,       setRows]       = useState([]);
-    const [categories, setCategories] = useState([]);
-    const [saving,     setSaving]     = useState(false);
-    const [saveError,  setSaveError]  = useState(null);
-    const [savedCount, setSavedCount] = useState(null);
+    const [rows,        setRows]        = useState([]);
+    const [categories,  setCategories]  = useState([]);
+    const [saving,      setSaving]      = useState(false);
+    const [saveError,   setSaveError]   = useState(null);
+    const [savedCount,  setSavedCount]  = useState(null);
+    const [searchQuery, setSearchQuery] = useState("");
 
     useEffect(() => {
         getAllCategories().then(setCategories).catch(() => setCategories([]));
@@ -242,6 +243,17 @@ function ImportStatementModal({ onClose, onSuccess }) {
         const key = (r.keyword || r.description || "unknown").toLowerCase();
         merchantTotals[key] = (merchantTotals[key] || 0) + (parseFloat(r.amount) || 0);
     });
+
+    /* ── filtered rows for table display only ── */
+    const filteredRows = searchQuery.trim() === ""
+        ? rows
+        : rows.filter(row => {
+            const q = searchQuery.toLowerCase();
+            const descMatch = (row.description ?? "").toLowerCase().includes(q);
+            const catName   = categories.find(c => c.categoryId === row.categoryId)?.categoryName ?? "uncategorized";
+            const catMatch  = catName.toLowerCase().includes(q);
+            return descMatch || catMatch;
+        });
 
     function handleFileChange(f) {
         if (!f) return;
@@ -269,6 +281,7 @@ function ImportStatementModal({ onClose, onSuccess }) {
                 date: t.dateTime ? t.dateTime.split("T")[0] : "",
             }));
             setRows(enriched);
+            setSearchQuery("");
             setScreen("preview");
         } catch (err) {
             setParseError(err?.response?.data?.message ?? "Failed to parse statement. Please try again.");
@@ -356,7 +369,7 @@ function ImportStatementModal({ onClose, onSuccess }) {
                     <div className="flex items-center gap-2">
                         {screen === "preview" && (
                             <button
-                                onClick={() => { setScreen("upload"); setSaveError(null); setSavedCount(null); }}
+                                onClick={() => { setScreen("upload"); setSaveError(null); setSavedCount(null); setSearchQuery(""); }}
                                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs"
                                 style={{ color: "var(--color-text-secondary)", backgroundColor: "rgba(var(--raw-input-bg),0.5)" }}
                             >
@@ -464,16 +477,34 @@ function ImportStatementModal({ onClose, onSuccess }) {
                 {screen === "preview" && (
                     <div className="flex flex-col overflow-hidden flex-1" style={{ minHeight: 0 }}>
 
+                        {/* stats bar */}
                         {savedCount === null ? (
-                            <div className="flex items-center gap-6 px-7 py-3.5 shrink-0 flex-wrap"
+                            <div className="flex items-center gap-4 px-7 py-3 shrink-0 flex-wrap"
                                 style={{ borderBottom: "1px solid rgba(78,222,163,0.08)", backgroundColor: "rgba(var(--raw-card-bg),0.5)" }}>
-                                <Stat label="Found"      value={totalRows}           color="var(--color-text-primary)" />
-                                <Stat label="Will Save"  value={willSaveCount}       color="#4edea3" />
-                                <Stat label="Duplicates" value={duplicateRows}       color="#fbbf24" />
-                                <Stat label="Uncategorized" value={uncategorizedCount} color={uncategorizedCount > 0 ? "#ef4444" : "var(--color-text-primary)"} />
-                                <Stat label="Total"      value={`₹${totalAmount.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`} color="var(--color-text-primary)" />
+                                <Stat label="Found"         value={totalRows}           color="var(--color-text-primary)" />
+                                <Stat label="Will Save"     value={willSaveCount}       color="#4edea3" />
+                                <Stat label="Duplicates"    value={duplicateRows}       color="#fbbf24" />
+                                <Stat label="Uncategorized" value={uncategorizedCount}  color={uncategorizedCount > 0 ? "#ef4444" : "var(--color-text-primary)"} />
+                                <Stat label="Total"         value={`₹${totalAmount.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`} color="var(--color-text-primary)" />
                                 <div className="flex-1" />
-                                <span className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Greyed rows = removed · use restore to bring back</span>
+                                {/* ── search bar ── */}
+                                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg"
+                                    style={{ backgroundColor: "rgba(var(--raw-input-bg),0.7)", border: "1px solid rgba(78,222,163,0.12)", minWidth: "200px" }}>
+                                    <Search size={12} style={{ color: "var(--color-text-secondary)", flexShrink: 0 }} />
+                                    <input
+                                        type="text"
+                                        placeholder="Search description or category…"
+                                        value={searchQuery}
+                                        onChange={e => setSearchQuery(e.target.value)}
+                                        className="text-xs outline-none bg-transparent flex-1"
+                                        style={{ color: "var(--color-text-primary)" }}
+                                    />
+                                    {searchQuery && (
+                                        <button onClick={() => setSearchQuery("")} style={{ color: "var(--color-text-secondary)", lineHeight: 1 }}>
+                                            <X size={11} />
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         ) : (
                             <div className="flex items-center gap-3 px-7 py-3.5 shrink-0"
@@ -489,6 +520,7 @@ function ImportStatementModal({ onClose, onSuccess }) {
                             </div>
                         )}
 
+                        {/* table */}
                         <div className="overflow-y-auto flex-1" style={{ minHeight: 0 }}>
                             <table className="w-full text-sm border-collapse">
                                 <thead className="sticky top-0 z-10" style={{ backgroundColor: "rgba(var(--raw-modal-bg),0.97)" }}>
@@ -500,7 +532,13 @@ function ImportStatementModal({ onClose, onSuccess }) {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {rows.map(row => {
+                                    {filteredRows.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={6} className="px-4 py-10 text-center text-xs" style={{ color: "var(--color-text-secondary)" }}>
+                                                No transactions match "{searchQuery}"
+                                            </td>
+                                        </tr>
+                                    ) : filteredRows.map(row => {
                                         const isUncategorized = !row._removed && !row.categoryId;
                                         const isDup = row.duplicate && !row._removed;
                                         const bg = isUncategorized

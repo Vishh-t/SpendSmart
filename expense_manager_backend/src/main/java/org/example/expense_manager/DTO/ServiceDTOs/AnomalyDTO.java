@@ -25,4 +25,5 @@ public class AnomalyDTO
 
     String severity;
 
+    boolean insufficientData;
 }
