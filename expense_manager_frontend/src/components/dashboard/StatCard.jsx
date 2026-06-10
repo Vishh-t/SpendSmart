@@ -3,10 +3,10 @@
 
 function StatCard({ title, value, subtitle, valueColor = "text-text-primary", children }) {
     return (
-        <div className="bg-surface-high rounded-xl p-5 flex flex-col gap-2">
-            <p className="text-text-secondary text-xs tracking-widest">{title}</p>
-            <p className={`text-3xl font-bold ${valueColor}`}>{value}</p>
-            {subtitle && <p className="text-text-secondary text-xs">{subtitle}</p>}
+        <div className="bg-surface-high rounded-xl p-3 md:p-5 flex flex-col gap-1.5 md:gap-2">
+            <p className="text-text-secondary text-[10px] md:text-xs tracking-widest">{title}</p>
+            <p className={`text-xl md:text-3xl font-bold ${valueColor}`}>{value}</p>
+            {subtitle && <p className="text-text-secondary text-[10px] md:text-xs">{subtitle}</p>}
             {children}
         </div>
     );

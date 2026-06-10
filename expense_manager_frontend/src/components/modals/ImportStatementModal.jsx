@@ -530,24 +530,24 @@ function ImportStatementModal({ onClose, onSuccess }) {
 
                         {/* stats bar */}
                         {savedCount === null ? (
-                            <div className="flex items-center gap-4 px-7 py-3 shrink-0 flex-wrap"
+                            <div className="flex items-center gap-3 px-4 md:px-7 py-3 shrink-0 flex-wrap"
                                 style={{ borderBottom: "1px solid rgba(78,222,163,0.08)", backgroundColor: "rgba(var(--raw-card-bg),0.5)" }}>
                                 <Stat label="Found"         value={totalRows}           color="var(--color-text-primary)" />
                                 <Stat label="Will Save"     value={willSaveCount}       color="#4edea3" />
-                                <Stat label="Duplicates"    value={duplicateRows}       color="#fbbf24" />
-                                <Stat label="Uncategorized" value={uncategorizedCount}  color={uncategorizedCount > 0 ? "#ef4444" : "var(--color-text-primary)"} />
+                                <Stat label="Dupes"         value={duplicateRows}       color="#fbbf24" />
+                                <Stat label="Uncat."        value={uncategorizedCount}  color={uncategorizedCount > 0 ? "#ef4444" : "var(--color-text-primary)"} />
                                 <Stat label="Total"         value={`₹${totalAmount.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`} color="var(--color-text-primary)" />
-                                <div className="flex-1" />
+                                <div className="flex-1 min-w-full sm:min-w-0" />
                                 {/* ── search bar ── */}
-                                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg"
-                                    style={{ backgroundColor: "rgba(var(--raw-input-bg),0.7)", border: "1px solid rgba(78,222,163,0.12)", minWidth: "200px" }}>
+                                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg w-full sm:w-auto"
+                                    style={{ backgroundColor: "rgba(var(--raw-input-bg),0.7)", border: "1px solid rgba(78,222,163,0.12)", minWidth: "0" }}>
                                     <Search size={12} style={{ color: "var(--color-text-secondary)", flexShrink: 0 }} />
                                     <input
                                         type="text"
-                                        placeholder="Search description or category…"
+                                        placeholder="Search…"
                                         value={searchQuery}
                                         onChange={e => setSearchQuery(e.target.value)}
-                                        className="text-xs outline-none bg-transparent flex-1"
+                                        className="text-xs outline-none bg-transparent flex-1 min-w-0"
                                         style={{ color: "var(--color-text-primary)" }}
                                     />
                                     {searchQuery && (
@@ -572,8 +572,8 @@ function ImportStatementModal({ onClose, onSuccess }) {
                         )}
 
                         {/* table */}
-                        <div className="overflow-y-auto flex-1" style={{ minHeight: 0 }}>
-                            <table className="w-full text-sm border-collapse">
+                        <div className="overflow-auto flex-1" style={{ minHeight: 0 }}>
+                            <table className="w-full text-sm border-collapse" style={{ minWidth: "600px" }}>
                                 <thead className="sticky top-0 z-10" style={{ backgroundColor: "rgba(var(--raw-modal-bg),0.97)" }}>
                                     <tr style={{ borderBottom: "1px solid rgba(78,222,163,0.10)" }}>
                                         {["Date","Description","Amount","Category","Conf.",""].map(h => (

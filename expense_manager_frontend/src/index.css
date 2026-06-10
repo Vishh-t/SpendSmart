@@ -44,9 +44,11 @@
 html, body {
     background-color: #0b1326;
     overflow-x: hidden;
+    max-width: 100vw;
 }
 html.light, html.light body {
     background-color: #F4F7F5;
+    overflow-x: hidden;
 }
 
 /* ─── Hide number input spinners ────────────────────────────────────────── */

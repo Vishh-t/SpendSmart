@@ -115,37 +115,37 @@ function SpendingChart({ annualSummary }) {
     const grid = <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />;
 
     return (
-        <div className="bg-surface-high rounded-xl p-5 flex-1">
+        <div className="bg-surface-high rounded-xl p-4 md:p-5 flex-1">
 
-            {/* Header row */}
-            <div className="flex items-center justify-between mb-5">
-                <h2 className="text-text-primary font-semibold">
+            {/* Header row — stacks on mobile */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 md:mb-5">
+                <h2 className="text-text-primary font-semibold text-sm md:text-base">
                     {view === "annual" ? "Monthly Spending Trend" : `Day-wise — ${MONTHS[selectedMonth - 1]} ${currentYear}`}
                 </h2>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
 
                     {/* Bar / Line toggle */}
                     <div className="flex rounded-lg overflow-hidden" style={{ border: `1px solid ${toggleBorder}` }}>
                         <button onClick={() => setChartType("bar")} title="Bar chart"
-                            className="flex items-center justify-center w-8 h-8 transition-all"
+                            className="flex items-center justify-center w-7 h-7 md:w-8 md:h-8 transition-all"
                             style={{ backgroundColor: chartType === "bar" ? ctaActive : "transparent", color: chartType === "bar" ? ctaText : iconInactive }}>
-                            <BarChart2 size={14} />
+                            <BarChart2 size={13} />
                         </button>
                         <button onClick={() => setChartType("line")} title="Line chart"
-                            className="flex items-center justify-center w-8 h-8 transition-all"
+                            className="flex items-center justify-center w-7 h-7 md:w-8 md:h-8 transition-all"
                             style={{ backgroundColor: chartType === "line" ? ctaActive : "transparent", color: chartType === "line" ? ctaText : iconInactive }}>
-                            <TrendingUp size={14} />
+                            <TrendingUp size={13} />
                         </button>
                     </div>
 
                     {/* Annual / Monthly toggle */}
                     <div className="flex rounded-lg overflow-hidden" style={{ border: `1px solid ${toggleBorder}` }}>
-                        <button onClick={switchToAnnual} className="px-3 py-1.5 text-xs transition-all"
+                        <button onClick={switchToAnnual} className="px-2 md:px-3 py-1 md:py-1.5 text-xs transition-all"
                             style={{ backgroundColor: view === "annual" ? toggleBg : "transparent", color: view === "annual" ? toggleText : iconInactive }}>
                             Annual
                         </button>
-                        <button onClick={switchToMonthly} className="px-3 py-1.5 text-xs transition-all"
+                        <button onClick={switchToMonthly} className="px-2 md:px-3 py-1 md:py-1.5 text-xs transition-all"
                             style={{ backgroundColor: view === "monthly" ? toggleBg : "transparent", color: view === "monthly" ? toggleText : iconInactive }}>
                             Monthly
                         </button>
@@ -206,16 +206,16 @@ function SpendingChart({ annualSummary }) {
 
             {/* Chart */}
             {isDayWiseLoading ? (
-                <div className="flex items-center justify-center h-64">
+                <div className="flex items-center justify-center h-48 md:h-64">
                     <p className="text-text-secondary text-sm">Loading...</p>
                 </div>
             ) : (
-                <ResponsiveContainer width="100%" height={250}>
+                <ResponsiveContainer width="100%" height={220}>
                     {chartType === "bar" ? (
-                        <BarChart data={chartData} barSize={view === "monthly" ? 8 : 20}>
+                        <BarChart data={chartData} barSize={view === "monthly" ? 6 : 16}>
                             {grid}
-                            <XAxis dataKey="label" tick={{ fill: axisColor, fontSize: 11 }} axisLine={false} tickLine={false} interval={view === "monthly" ? 4 : 0} />
-                            <YAxis tick={{ fill: axisColor, fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${v}`} />
+                            <XAxis dataKey="label" tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} interval={view === "monthly" ? 4 : 0} />
+                            <YAxis tick={{ fill: axisColor, fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `₹${(v/1000).toFixed(0)}k` : `₹${v}`} width={36} />
                             {tooltipEl}
                             <Bar dataKey="amount" radius={[4, 4, 0, 0]}>
                                 {chartData.map((_, index) => (
@@ -226,11 +226,11 @@ function SpendingChart({ annualSummary }) {
                     ) : (
                         <LineChart data={chartData}>
                             {grid}
-                            <XAxis dataKey="label" tick={{ fill: axisColor, fontSize: 11 }} axisLine={false} tickLine={false} interval={view === "monthly" ? 4 : 0} />
-                            <YAxis tick={{ fill: axisColor, fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${v}`} />
+                            <XAxis dataKey="label" tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} interval={view === "monthly" ? 4 : 0} />
+                            <YAxis tick={{ fill: axisColor, fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `₹${(v/1000).toFixed(0)}k` : `₹${v}`} width={36} />
                             {tooltipEl}
                             <Line type="monotone" dataKey="amount" stroke={lineColor} strokeWidth={2}
-                                dot={{ fill: lineColor, r: view === "monthly" ? 2 : 4 }} activeDot={{ r: 6 }} />
+                                dot={{ fill: lineColor, r: view === "monthly" ? 2 : 3 }} activeDot={{ r: 5 }} />
                         </LineChart>
                     )}
                 </ResponsiveContainer>

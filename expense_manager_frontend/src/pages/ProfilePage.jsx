@@ -168,8 +168,9 @@ function ActivityHeatmap({ expenses }) {
         weeks.push(paddedDays.slice(i, i + 7));
     }
 
-    const CELL = 18;
-    const GAP  = 4;
+    const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
+    const CELL = isMobile ? 12 : 18;
+    const GAP  = isMobile ? 3 : 4;
 
     // Scrollbar colors derived from theme
     const thumbColor     = isDark ? "rgba(78,222,163,0.28)"  : "rgba(16,185,129,0.38)";
@@ -195,7 +196,7 @@ function ActivityHeatmap({ expenses }) {
     const [selectedDate,  setSelectedDate]  = useState(null);
 
     return (
-        <div className="bg-surface-high rounded-xl p-6">
+        <div className="bg-surface-high rounded-xl p-4 md:p-6">
             <div className="flex items-center justify-between mb-6">
                 <h2 className="text-text-primary font-semibold">Spending Activity — {year}</h2>
                 <p className="text-text-secondary text-xs">{expenses.length} total transactions</p>
@@ -222,9 +223,13 @@ function ActivityHeatmap({ expenses }) {
             <div
                 className="heatmap-scroll pb-2"
                 style={{
-                    overflowX: "auto",
+                    overflowX: "scroll",
+                    overflowY: "hidden",
+                    WebkitOverflowScrolling: "touch",
+                    touchAction: "pan-x pinch-zoom",
                     scrollbarWidth: "thin",
                     scrollbarColor: `${thumbColor} transparent`,
+                    cursor: "grab",
                 }}
             >
                 {/* inner div — no minWidth:100% so it only takes the space it needs */}
@@ -424,9 +429,9 @@ function ProfilePage() {
             </div>
 
             {/* Account Info Cards */}
-            <div className="bg-surface-high rounded-xl p-6">
-                <h2 className="text-text-primary font-semibold mb-5">Account Information</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-surface-high rounded-xl p-4 md:p-6">
+                <h2 className="text-text-primary font-semibold mb-4 md:mb-5">Account Information</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
                     {[
                         { icon: <User size={16} className="text-primary" />,   label: "FULL NAME",      value: userInfo?.name },
                         { icon: <AtSign size={16} className="text-primary" />, label: "USERNAME",       value: userInfo?.username, mono: true },
@@ -448,7 +453,7 @@ function ProfilePage() {
             </div>
 
             {/* Budget & Danger Zone */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
                 <div className="bg-surface-high rounded-xl p-6">
                     <h2 className="text-text-primary font-semibold mb-1">Update Monthly Budget</h2>
                     <p className="text-text-secondary text-xs mb-5">Used for budget warnings on your dashboard.</p>

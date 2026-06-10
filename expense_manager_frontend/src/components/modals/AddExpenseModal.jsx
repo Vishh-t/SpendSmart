@@ -157,13 +157,13 @@ function AddExpenseModal({ onClose, onSuccess }) {
                 </div>
 
                 {/* ── body ────────────────────────────────────────────── */}
-                <div className="flex flex-col gap-6 px-7 py-6">
+                <div className="flex flex-col gap-5 px-4 sm:px-7 py-5 sm:py-6">
 
-                {/* amount + date row */}
-                <div className="flex gap-4">
+                {/* amount + date row — stacks on very small screens */}
+                <div className="flex flex-col sm:flex-row gap-4">
                     <div className="flex flex-col gap-1.5 flex-1">
                         <label className="text-text-secondary text-xs tracking-widest">AMOUNT (₹)</label>
-                        <div className="flex items-center gap-2 rounded-lg px-4 py-3.5"
+                        <div className="flex items-center gap-2 rounded-lg px-4 py-3"
                             style={{ backgroundColor: "rgba(var(--raw-input-bg), 0.8)" }}>
                             <span className="text-text-secondary text-base font-medium">₹</span>
                             <input
@@ -175,10 +175,10 @@ function AddExpenseModal({ onClose, onSuccess }) {
                             />
                         </div>
                     </div>
-                    <div className="flex flex-col gap-1.5 relative" style={{ minWidth: "168px" }} ref={calRef}>
+                    <div className="flex flex-col gap-1.5 relative sm:min-w-[168px]" ref={calRef}>
                         <label className="text-text-secondary text-xs tracking-widest">DATE</label>
                         <button type="button" onClick={() => setCalOpen(o => !o)}
-                            className="flex items-center justify-between gap-2 rounded-lg px-4 py-3.5 text-sm text-left"
+                            className="flex items-center justify-between gap-2 rounded-lg px-4 py-3 text-sm text-left"
                             style={{ backgroundColor: "rgba(var(--raw-input-bg), 0.8)" }}>
                             <span style={{ fontFamily: "'Berkeley Mono', 'Courier New', monospace", color: selDay ? "var(--color-text-primary)" : "var(--color-text-secondary)" }}>
                                 {dateLabel}
