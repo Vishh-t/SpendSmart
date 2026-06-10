@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Tag, Loader2 } from "lucide-react";
-import { getAllCategories, addCategory, deleteCategory } from "../services/categoryService.js";
+import { Plus, Trash2, Tag, Loader2, Target } from "lucide-react";
+import { getAllCategories, addCategory, deleteCategory, setCategoryBudget, getCategoryBudgetSummary } from "../services/categoryService.js";
 import { getFinancialSummary } from "../services/expenseService.js";
 import { formatCurrency } from "../utils/formatCurrency.js";
 import { LoadingState, ErrorState } from "../components/ui/PageState.jsx";
@@ -23,17 +23,42 @@ const COLORS_LIGHT = [
 ];
 
 // ─── CategoryCard ─────────────────────────────────────────────────────────
-function CategoryCard({ category, totalSpent, onDelete, colorIndex }) {
+function CategoryCard({ category, totalSpent, budgetStatus, onDelete, onBudgetSet, colorIndex }) {
     const { isDark } = useTheme();
     const icon   = CATEGORY_ICONS[colorIndex % CATEGORY_ICONS.length];
     const colors = isDark ? COLORS_DARK : COLORS_LIGHT;
     const color  = colors[colorIndex % colors.length];
+
+    const [editingBudget, setEditingBudget] = useState(false);
+    const [budgetInput,   setBudgetInput]   = useState("");
+    const [budgetLoading, setBudgetLoading] = useState(false);
+
+    async function handleBudgetSave() {
+        const val = parseFloat(budgetInput);
+        if (!val || val <= 0) return;
+        setBudgetLoading(true);
+        try {
+            await setCategoryBudget(category.categoryId, val);
+            onBudgetSet();
+            setEditingBudget(false);
+            setBudgetInput("");
+        } finally {
+            setBudgetLoading(false);
+        }
+    }
 
     // card bg + border tokens
     const cardBg          = isDark ? "rgba(26,36,56,0.9)"         : "#FFFFFF";
     const cardBorderIdle  = isDark ? "rgba(61,73,98,0.5)"         : "rgba(0,108,73,0.10)";
     const cardShadowIdle  = isDark ? "none"                        : "0 4px 20px rgba(0,0,0,0.04)";
     const cardShadowHover = isDark ? "none"                        : "0 8px 28px rgba(0,0,0,0.08)";
+
+    // budget bar color based on status
+    const barColor = budgetStatus?.status === "EXCEEDED" ? "#ef4444"
+        : budgetStatus?.status === "WARNING" ? "#f59e0b"
+        : color;
+
+    const pct = budgetStatus ? Math.min(parseFloat(budgetStatus.percentage), 100) : 0;
 
     return (
         <div
@@ -45,9 +70,7 @@ function CategoryCard({ category, totalSpent, onDelete, colorIndex }) {
             }}
             onMouseEnter={e => {
                 e.currentTarget.style.border = `1px solid ${color}55`;
-                e.currentTarget.style.boxShadow = isDark
-                    ? `0 0 0 1px ${color}22`
-                    : cardShadowHover;
+                e.currentTarget.style.boxShadow = isDark ? `0 0 0 1px ${color}22` : cardShadowHover;
             }}
             onMouseLeave={e => {
                 e.currentTarget.style.border = `1px solid ${cardBorderIdle}`;
@@ -55,38 +78,81 @@ function CategoryCard({ category, totalSpent, onDelete, colorIndex }) {
             }}
         >
             {/* Icon box */}
-            <div
-                className="w-12 h-12 rounded-xl flex items-center justify-center text-xl"
-                style={{ backgroundColor: `${color}18` }}
-            >
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center text-xl" style={{ backgroundColor: `${color}18` }}>
                 {icon}
             </div>
 
             {/* Name + subtitle */}
             <div>
-                <h3 className="text-text-primary font-semibold text-lg leading-tight">
-                    {category.categoryName}
-                </h3>
+                <h3 className="text-text-primary font-semibold text-lg leading-tight">{category.categoryName}</h3>
                 <p className="text-text-secondary text-xs tracking-widest mt-0.5">EXPENSE SECTOR</p>
             </div>
 
             {/* Total spent */}
             <div className="flex items-baseline gap-1">
-                <p
-                    className="font-bold text-2xl"
-                    style={{ color, fontFamily: "'Berkeley Mono','Courier New',monospace" }}
-                >
+                <p className="font-bold text-2xl" style={{ color, fontFamily: "'Berkeley Mono','Courier New',monospace" }}>
                     ₹{formatCurrency(totalSpent)}
                 </p>
-                <span
-                    className="text-sm font-normal"
-                    style={{ color: isDark ? "#8892a4" : "#4A6358" }}
-                >
-                    total
-                </span>
+                <span className="text-sm font-normal" style={{ color: isDark ? "#8892a4" : "#4A6358" }}>total</span>
             </div>
 
-            {/* Delete button — appears on hover */}
+            {/* Budget section */}
+            {budgetStatus ? (
+                <div className="flex flex-col gap-1.5">
+                    <div className="flex justify-between items-center">
+                        <span className="text-xs" style={{ color: isDark ? "#8892a4" : "#4A6358" }}>
+                            ₹{formatCurrency(budgetStatus.spentThisMonth)} / ₹{formatCurrency(budgetStatus.categoryBudget)}
+                        </span>
+                        <span className="text-xs font-bold" style={{ color: barColor }}>
+                            {budgetStatus.status}
+                        </span>
+                    </div>
+                    <div className="w-full rounded-full h-1.5" style={{ backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)" }}>
+                        <div className="h-1.5 rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: barColor }} />
+                    </div>
+                    <button onClick={() => { setEditingBudget(true); setBudgetInput(budgetStatus.monthlyBudget); }}
+                        className="text-xs self-start opacity-0 group-hover:opacity-100 transition-all"
+                        style={{ color: isDark ? "#8892a4" : "#4A6358" }}
+                    >edit budget</button>
+                </div>
+            ) : (
+                !editingBudget && (
+                    <button onClick={() => setEditingBudget(true)}
+                        className="flex items-center gap-1.5 text-xs opacity-0 group-hover:opacity-100 transition-all self-start"
+                        style={{ color: isDark ? "#8892a4" : "#4A6358" }}
+                        onMouseEnter={e => e.currentTarget.style.color = color}
+                        onMouseLeave={e => e.currentTarget.style.color = isDark ? "#8892a4" : "#4A6358"}
+                    >
+                        <Target size={11} /> Set budget
+                    </button>
+                )
+            )}
+
+            {/* Budget input */}
+            {editingBudget && (
+                <div className="flex gap-2 items-center">
+                    <input
+                        autoFocus
+                        type="number"
+                        placeholder="Monthly budget"
+                        value={budgetInput}
+                        onChange={e => setBudgetInput(e.target.value)}
+                        onKeyDown={e => { if (e.key === "Enter") handleBudgetSave(); if (e.key === "Escape") setEditingBudget(false); }}
+                        className="flex-1 px-2 py-1.5 rounded-lg text-xs outline-none text-text-primary"
+                        style={{ backgroundColor: isDark ? "rgba(11,19,38,0.8)" : "#F4F7F5", border: `1px solid ${color}55` }}
+                    />
+                    <button onClick={handleBudgetSave} disabled={budgetLoading}
+                        className="px-2 py-1.5 rounded-lg text-xs font-bold"
+                        style={{ background: `${color}22`, color }}>
+                        {budgetLoading ? "…" : "Save"}
+                    </button>
+                    <button onClick={() => setEditingBudget(false)}
+                        className="px-2 py-1.5 rounded-lg text-xs"
+                        style={{ background: "rgba(239,68,68,0.10)", color: "#ef4444" }}>✕</button>
+                </div>
+            )}
+
+            {/* Delete button */}
             <button
                 onClick={() => onDelete(category.categoryId, category.categoryName)}
                 className="flex items-center gap-1.5 text-xs transition-all opacity-0 group-hover:opacity-100 self-start"
@@ -231,6 +297,7 @@ function CategoriesPage() {
     const { isDark } = useTheme();
     const [categories,       setCategories]       = useState([]);
     const [financialSummary, setFinancialSummary] = useState(null);
+    const [budgetSummary,    setBudgetSummary]    = useState([]);
     const [isLoading,        setIsLoading]         = useState(true);
     const [error,            setError]             = useState(null);
     const [confirmDelete,    setConfirmDelete]      = useState(null);
@@ -244,12 +311,14 @@ function CategoriesPage() {
                 if (err.response?.status === 404) return null;
                 throw err;
             });
-            const [cats, summary] = await Promise.all([
+            const [cats, summary, budgets] = await Promise.all([
                 safeGet(getAllCategories()),
-                safeGet(getFinancialSummary())
+                safeGet(getFinancialSummary()),
+                safeGet(getCategoryBudgetSummary())
             ]);
             setCategories(cats ?? []);
             setFinancialSummary(summary ?? null);
+            setBudgetSummary(budgets ?? []);
         } catch {
             setError("Failed to load categories.");
         } finally {
@@ -262,9 +331,14 @@ function CategoriesPage() {
             await deleteCategory(categoryId);
             setConfirmDelete(null);
             setDeleteError("");
-            const [cats, summary] = await Promise.all([getAllCategories(), getFinancialSummary()]);
+            const [cats, summary, budgets] = await Promise.all([
+                getAllCategories(),
+                getFinancialSummary(),
+                getCategoryBudgetSummary().catch(() => [])
+            ]);
             setCategories(cats);
             setFinancialSummary(summary);
+            setBudgetSummary(budgets ?? []);
         } catch (err) {
             setConfirmDelete(null);
             if (err.response?.status === 409) {
@@ -341,7 +415,9 @@ function CategoriesPage() {
                         key={cat.categoryId}
                         category={cat}
                         totalSpent={financialSummary?.categoryBreakdown?.[cat.categoryName] || 0}
+                        budgetStatus={budgetSummary.find(b => b.categoryName === cat.categoryName) ?? null}
                         onDelete={(id, name) => setConfirmDelete({ id, name })}
+                        onBudgetSet={fetchData}
                         colorIndex={index}
                     />
                 ))}

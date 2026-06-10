@@ -2,10 +2,134 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useTheme } from "../context/ThemeContext.jsx";
 import { getUserInfo, updateBudget, deleteAccount } from "../services/userService.js";
-import { getAllExpenses } from "../services/expenseService.js";
+import { getAllExpenses, getExpensesByDateRange } from "../services/expenseService.js";
 import { formatCurrency } from "../utils/formatCurrency.js";
+import { formatDateUpper } from "../utils/formatDate.js";
 import { LoadingState, ErrorState } from "../components/ui/PageState.jsx";
-import { LogOut, Trash2, Save, User, Mail, AtSign, Wallet, AlertTriangle } from "lucide-react";
+import { LogOut, Trash2, Save, User, Mail, AtSign, Wallet, AlertTriangle, X } from "lucide-react";
+
+// ─── Date Expenses Modal ──────────────────────────────────────────────────────
+function DateExpensesModal({ date, onClose }) {
+    const { isDark } = useTheme();
+    const [expenses, setExpenses] = useState([]);
+    const [loading,  setLoading]  = useState(true);
+
+    useEffect(() => {
+        async function fetchDayExpenses() {
+            try {
+                const data = await getExpensesByDateRange(date, date);
+                setExpenses(data);
+            } catch {
+                setExpenses([]);
+            } finally {
+                setLoading(false);
+            }
+        }
+        fetchDayExpenses();
+    }, [date]);
+
+    const total = expenses.reduce((s, e) => s + Number(e.amount), 0);
+
+    return (
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center"
+            style={{ backgroundColor: "rgba(var(--raw-overlay-bg), 0.80)", backdropFilter: "blur(10px)" }}
+            onClick={onClose}
+        >
+            <div
+                className="relative flex flex-col rounded-2xl shadow-2xl overflow-hidden"
+                style={{
+                    backgroundColor: "rgba(var(--raw-modal-bg), 0.97)",
+                    border: "1px solid rgba(78,222,163,0.15)",
+                    width: "min(96vw, 520px)",
+                    maxHeight: "70vh",
+                }}
+                onClick={e => e.stopPropagation()}
+            >
+                {/* Header */}
+                <div
+                    className="flex items-center justify-between px-6 py-4 shrink-0"
+                    style={{
+                        background: "linear-gradient(135deg, rgba(78,222,163,0.13) 0%, rgba(16,185,129,0.07) 100%)",
+                        borderBottom: "1px solid rgba(78,222,163,0.12)",
+                    }}
+                >
+                    <div className="flex items-center gap-3">
+                        <div className="w-1 h-7 rounded-full" style={{ background: "linear-gradient(180deg,#4edea3,#10b981)" }} />
+                        <div>
+                            <h2 className="text-text-primary font-semibold text-sm">
+                                {new Date(date + "T00:00:00").toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                            </h2>
+                            <p className="text-text-secondary text-xs mt-0.5">
+                                {loading ? "Loading…" : `${expenses.length} transaction${expenses.length !== 1 ? "s" : ""} · ₹${total.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`}
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg"
+                        style={{ color: "var(--color-text-secondary)" }}
+                        onMouseEnter={e => { e.currentTarget.style.backgroundColor = "rgba(78,222,163,0.12)"; e.currentTarget.style.color = "var(--color-primary)"; }}
+                        onMouseLeave={e => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = "var(--color-text-secondary)"; }}
+                    >
+                        <X size={15} />
+                    </button>
+                </div>
+
+                {/* Body */}
+                <div className="overflow-y-auto flex-1" style={{ minHeight: 0 }}>
+                    {loading ? (
+                        <div className="flex items-center justify-center py-12">
+                            <div className="w-5 h-5 rounded-full border-2 animate-spin" style={{ borderColor: "var(--color-primary)", borderTopColor: "transparent" }} />
+                        </div>
+                    ) : expenses.length === 0 ? (
+                        <p className="text-center text-text-secondary text-sm py-12">No expenses found for this date.</p>
+                    ) : (
+                        <table className="w-full text-sm">
+                            <thead className="sticky top-0" style={{ backgroundColor: "rgba(var(--raw-modal-bg),0.97)", borderBottom: "1px solid rgba(78,222,163,0.08)" }}>
+                                <tr>
+                                    {["Description","Category","Amount"].map(h => (
+                                        <th key={h} className="text-left px-5 py-3 text-xs font-semibold tracking-widest" style={{ color: "var(--color-text-secondary)" }}>{h}</th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {expenses.map(exp => (
+                                    <tr key={exp.expenseId} style={{ borderBottom: "1px solid rgba(78,222,163,0.05)" }}>
+                                        <td className="px-5 py-3 text-text-primary text-xs">{exp.description || "—"}</td>
+                                        <td className="px-5 py-3">
+                                            <span className="text-xs px-2.5 py-1 rounded-full"
+                                                style={{ backgroundColor: "var(--color-surface-low)", color: "var(--color-text-secondary)" }}>
+                                                {exp.category?.categoryName || "Uncategorized"}
+                                            </span>
+                                        </td>
+                                        <td className="px-5 py-3 text-right text-xs font-semibold"
+                                            style={{ color: "var(--color-primary)", fontFamily: "'Berkeley Mono','Courier New',monospace" }}>
+                                            -₹{Number(exp.amount).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
+                </div>
+
+                {/* Footer total */}
+                {!loading && expenses.length > 0 && (
+                    <div
+                        className="flex items-center justify-between px-5 py-3 shrink-0 text-xs"
+                        style={{ borderTop: "1px solid rgba(78,222,163,0.10)", backgroundColor: "rgba(78,222,163,0.04)" }}
+                    >
+                        <span style={{ color: "var(--color-text-secondary)" }}>Total spent</span>
+                        <span style={{ color: "var(--color-primary)", fontFamily: "'Berkeley Mono','Courier New',monospace", fontWeight: 700 }}>
+                            -₹{total.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                        </span>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
 
 // ─── Activity Heatmap ─────────────────────────────────────────────────────────
 function ActivityHeatmap({ expenses }) {
@@ -67,7 +191,8 @@ function ActivityHeatmap({ expenses }) {
         }
     }
 
-    const [tooltip, setTooltip] = useState(null);
+    const [tooltip,       setTooltip]       = useState(null);
+    const [selectedDate,  setSelectedDate]  = useState(null);
 
     return (
         <div className="bg-surface-high rounded-xl p-6">
@@ -184,6 +309,9 @@ function ActivityHeatmap({ expenses }) {
                                                     setTooltip(null);
                                                 }
                                             }}
+                                            onClick={() => {
+                                                if (day?.amount) setSelectedDate(day.dateStr);
+                                            }}
                                         />
                                     ))}
                                 </div>
@@ -217,8 +345,12 @@ function ActivityHeatmap({ expenses }) {
                          boxShadow: isDark ? "none" : "0 4px 20px rgba(0,0,0,0.08)"
                      }}>
                     <span style={{ fontFamily: "monospace" }}>{tooltip.date}</span> • ₹{Number(tooltip.amount).toLocaleString("en-IN")}
+                    <span className="block text-center" style={{ color: isDark ? "rgba(78,222,163,0.7)" : "rgba(0,108,73,0.7)", fontSize: "10px", marginTop: "2px" }}>click to view</span>
                 </div>
             )}
+
+            {/* Date Expenses Modal */}
+            {selectedDate && <DateExpensesModal date={selectedDate} onClose={() => setSelectedDate(null)} />}
         </div>
     );
 }

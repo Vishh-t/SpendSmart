@@ -28,4 +28,5 @@ public interface ExpenseRepo extends JpaRepository<Expense, Integer>
             User user, BigDecimal amount, String keyword, LocalDateTime dateTime
     );
 
+    List<Expense> findAllByUserAndKeyword(User user, String oldKeyword);
 }

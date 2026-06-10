@@ -14,3 +14,13 @@ export async function deleteCategory(categoryId) {
     const response = await api.delete(`/category/${categoryId}`);
     return response.data;
 }
+
+export async function setCategoryBudget(categoryId, monthlyBudget) {
+    const response = await api.patch(`/category/${categoryId}/budget?monthlyCategoryBudget=${monthlyBudget}`);
+    return response.data;
+}
+
+export async function getCategoryBudgetSummary() {
+    const response = await api.get("/category/categoryBudgetSummary");
+    return response.data;
+}

@@ -144,5 +144,12 @@ public class ExpenseController
         return new ResponseEntity<>(service.addBulkExpenses(loggedInUser, items), HttpStatus.CREATED);
     }
 
+    @PatchMapping("/renameKeyword")
+    public ResponseEntity<?> renameKeyword(@RequestParam String oldKeyword, @RequestParam String newKeyword)
+    {
+        User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
+        return new ResponseEntity<>(service.renameKeyword(loggedInUser, oldKeyword, newKeyword), HttpStatus.OK);
+    }
+
 
 }

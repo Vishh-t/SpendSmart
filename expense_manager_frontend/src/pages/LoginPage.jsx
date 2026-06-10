@@ -127,7 +127,6 @@ function LoginPage() {
                         <div>
                             <div className="flex justify-between items-center">
                                 <label className="text-xs font-semibold text-primary tracking-widest">PASSWORD</label>
-                                <span className="text-xs text-primary cursor-pointer">FORGOT?</span>
                             </div>
                             <input
                                 type="password"
@@ -222,20 +221,7 @@ function LoginPage() {
                     </form>
                 )}
 
-                {/* Social Login */}
-                <div className="mt-6">
-                    <p className="text-center text-xs text-text-secondary mb-4">OR CONTINUE WITH</p>
-                    <div className="flex gap-3">
-                        <button
-                            className="flex-1 flex items-center justify-center gap-2 bg-surface-low text-text-primary py-3 rounded-lg text-sm hover:bg-surface-bright transition-all">
-                            Google
-                        </button>
-                        <button
-                            className="flex-1 flex items-center justify-center gap-2 bg-surface-low text-text-primary py-3 rounded-lg text-sm hover:bg-surface-bright transition-all">
-                            Apple
-                        </button>
-                    </div>
-                </div>
+                {/* Social Login removed — OAuth coming later */}
             </div>
 
             {/* Footer */}

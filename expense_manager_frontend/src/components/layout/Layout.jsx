@@ -138,17 +138,50 @@ function Layout({ children }) {
                             color: isDark ? "rgba(136,146,164,0.45)" : "rgba(74,99,88,0.50)",
                         }}
                     >
-                        SpendSmart · Precision Ledger
+                        SpendSmart · Precision Ledger · <span style={{ color: isDark ? "rgba(78,222,163,0.45)" : "rgba(0,108,73,0.45)" }}>v1.0 Beta</span>
                     </span>
-                    <span
-                        className="text-xs"
-                        style={{
-                            fontFamily: "'Berkeley Mono','Courier New',monospace",
-                            color: isDark ? "rgba(78,222,163,0.30)" : "rgba(0,108,73,0.28)",
-                        }}
-                    >
-                        v1.0 · © 2026
-                    </span>
+                    <div className="flex items-center gap-4">
+                        <a
+                            href="https://docs.google.com/forms/d/e/1FAIpQLSdUN3kRqoTg0Iee3ZFoDftccsKk13eEK0jLhwFOlFeRB_WKOg/viewform?usp=publish-editor"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs transition-all"
+                            style={{ color: isDark ? "rgba(78,222,163,0.45)" : "rgba(0,108,73,0.50)", fontFamily: "'Berkeley Mono','Courier New',monospace" }}
+                            onMouseEnter={e => e.currentTarget.style.color = isDark ? "#4edea3" : "#006C49"}
+                            onMouseLeave={e => e.currentTarget.style.color = isDark ? "rgba(78,222,163,0.45)" : "rgba(0,108,73,0.50)"}
+                        >
+                            Feedback ↗
+                        </a>
+                        <a
+                            href="https://github.com/Vishh-t/SpendSmart"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs transition-all"
+                            style={{ color: isDark ? "rgba(136,146,164,0.45)" : "rgba(74,99,88,0.50)", fontFamily: "'Berkeley Mono','Courier New',monospace" }}
+                            onMouseEnter={e => e.currentTarget.style.color = isDark ? "#8892a4" : "#4A6358"}
+                            onMouseLeave={e => e.currentTarget.style.color = isDark ? "rgba(136,146,164,0.45)" : "rgba(74,99,88,0.50)"}
+                        >
+                            GitHub ↗
+                        </a>
+                        <a
+                            href="mailto:expense26@gmail.com"
+                            className="text-xs transition-all"
+                            style={{ color: isDark ? "rgba(136,146,164,0.45)" : "rgba(74,99,88,0.50)", fontFamily: "'Berkeley Mono','Courier New',monospace" }}
+                            onMouseEnter={e => e.currentTarget.style.color = isDark ? "#8892a4" : "#4A6358"}
+                            onMouseLeave={e => e.currentTarget.style.color = isDark ? "rgba(136,146,164,0.45)" : "rgba(74,99,88,0.50)"}
+                        >
+                            Contact ↗
+                        </a>
+                        <span
+                            className="text-xs"
+                            style={{
+                                fontFamily: "'Berkeley Mono','Courier New',monospace",
+                                color: isDark ? "rgba(78,222,163,0.30)" : "rgba(0,108,73,0.28)",
+                            }}
+                        >
+                            © 2026
+                        </span>
+                    </div>
                 </footer>
             </div>
 

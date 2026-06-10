@@ -1,4 +1,57 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+
+const FUN_MESSAGES = [
+    "Counting your Swiggy orders... 🍕",
+    "Calculating money spent on your ex... 💸",
+    "Detecting suspicious 3am transactions... 🌙",
+    "Judging your weekend spending habits... 👀",
+    "Finding where all your money went... 🕵️",
+    "Tallying midnight snack investments... 🍟",
+    "Measuring coffee addiction severity... ☕",
+    "Locating gym membership you never use... 💪",
+    "Counting Zomato orders this month... 🛵",
+    "Calculating actual cost of \"just one drink\'... 🍺",
+];
+
+function FunLoader() {
+    const [index, setIndex] = useState(0);
+    const [visible, setVisible] = useState(true);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setVisible(false);
+            setTimeout(() => {
+                setIndex(i => (i + 1) % FUN_MESSAGES.length);
+                setVisible(true);
+            }, 400);
+        }, 2800);
+        return () => clearInterval(interval);
+    }, []);
+
+    return (
+        <div className="flex flex-col items-center gap-4 py-2">
+            <div className="flex gap-1.5">
+                {[0,1,2].map(i => (
+                    <div key={i} className="w-1.5 h-1.5 rounded-full" style={{
+                        backgroundColor: "var(--color-primary)",
+                        animation: `bounce 1.2s ease-in-out ${i * 0.2}s infinite`,
+                    }}/>
+                ))}
+            </div>
+            <p
+                className="text-xs text-center transition-all duration-300"
+                style={{
+                    color: "var(--color-text-secondary)",
+                    opacity: visible ? 1 : 0,
+                    transform: visible ? "translateY(0)" : "translateY(6px)",
+                }}
+            >
+                {FUN_MESSAGES[index]}
+            </p>
+            <style>{`@keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }`}</style>
+        </div>
+    );
+}
 import {
     X, Upload, FileText, Loader2, ChevronDown,
     AlertTriangle, CheckCircle2, Trash2, ShieldAlert,
@@ -213,7 +266,7 @@ function ImportStatementModal({ onClose, onSuccess }) {
     const [screen, setScreen] = useState("upload");
 
     const [file,           setFile]           = useState(null);
-    const [includeCredits, setIncludeCredits] = useState(false);
+    const [includeCredits] = useState(false);
     const [dragOver,       setDragOver]       = useState(false);
     const [parsing,        setParsing]        = useState(false);
     const [parseError,     setParseError]     = useState(null);
@@ -429,24 +482,21 @@ function ImportStatementModal({ onClose, onSuccess }) {
                             )}
                         </div>
 
-                        <div className="flex items-center justify-between px-4 py-3.5 rounded-xl" style={{ backgroundColor: "rgba(var(--raw-input-bg),0.5)" }}>
-                            <div>
-                                <p className="text-text-primary text-sm font-medium">Include Credits</p>
-                                <p className="text-text-secondary text-xs mt-0.5">Also extract incoming transfers, refunds, salary</p>
-                            </div>
-                            <button onClick={() => setIncludeCredits(v => !v)}>
-                                {includeCredits
-                                    ? <ToggleRight size={28} style={{ color: "var(--color-primary)" }} />
-                                    : <ToggleLeft  size={28} style={{ color: "var(--color-text-secondary)" }} />}
-                            </button>
-                        </div>
+
 
                         <div className="flex items-start gap-3 px-4 py-3.5 rounded-xl" style={{ backgroundColor: "rgba(251,191,36,0.07)", border: "1px solid rgba(251,191,36,0.18)" }}>
                             <ShieldAlert size={15} style={{ color: "#fbbf24", flexShrink: 0, marginTop: "2px" }} />
                             <p className="text-xs" style={{ color: "#fbbf24", lineHeight: "1.6" }}>
-                                Your statement will be sent to <strong>Google Gemini AI</strong> for processing.
-                                Account numbers and IFSC codes are stripped before sending.
-                                Do not use if you are uncomfortable sharing transaction data with a third-party AI.
+                                Your statement is processed by <strong>Google Gemini AI</strong> and never stored on our servers.
+                                Account numbers and IFSC codes are stripped before leaving your device.
+                                Your financial data stays yours — always.
+                            </p>
+                        </div>
+
+                        <div className="flex items-start gap-3 px-4 py-3.5 rounded-xl" style={{ backgroundColor: "rgba(78,222,163,0.05)", border: "1px solid rgba(78,222,163,0.15)" }}>
+                            <AlertTriangle size={15} style={{ color: "var(--color-primary)", flexShrink: 0, marginTop: "2px" }} />
+                            <p className="text-xs" style={{ color: "var(--color-text-secondary)", lineHeight: "1.6" }}>
+                                For best results, make sure you have <span style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>relevant categories set up beforehand</span> — such as Food, Transport, Shopping, Subscriptions, etc. If the AI cannot find a matching category, those expenses will be left <span style={{ color: "#ef4444" }}>uncategorized</span> and you'll need to assign them manually in the review screen.
                             </p>
                         </div>
 
@@ -458,7 +508,7 @@ function ImportStatementModal({ onClose, onSuccess }) {
                         )}
 
                         <div className="flex gap-3 pt-1">
-                            <button onClick={onClose} className="flex-1 py-3 rounded-lg text-sm text-text-secondary" style={{ backgroundColor: "rgba(var(--raw-input-bg),0.5)" }}>
+                            <button onClick={onClose} disabled={parsing} className="flex-1 py-3 rounded-lg text-sm text-text-secondary" style={{ backgroundColor: "rgba(var(--raw-input-bg),0.5)" }}>
                                 Cancel
                             </button>
                             <button
@@ -470,6 +520,7 @@ function ImportStatementModal({ onClose, onSuccess }) {
                                 {parsing ? <><Loader2 size={14} className="animate-spin" /> Analysing…</> : <><Sparkles size={14} /> Parse Statement</>}
                             </button>
                         </div>
+                        {parsing && <FunLoader />}
                     </div>
                 )}
 

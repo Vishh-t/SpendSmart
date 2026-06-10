@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { useData } from "../context/DataContext.jsx";
 import {
     AlertTriangle, TrendingUp, Minus, Repeat2,
     Flame, Trophy, Zap, Info, Calendar,
@@ -8,6 +9,7 @@ import {
     getAnomalies, getMerchantLeaderboard, getSubscriptionTracker,
     getWeeklyDNA, getDailyBurnRate, getMonthlyDelta
 } from "../services/insightsService.js";
+import { renameKeyword } from "../services/expenseService.js";
 import { formatCurrency } from "../utils/formatCurrency.js";
 import { useTheme } from "../context/ThemeContext.jsx";
 import {
@@ -121,6 +123,7 @@ function SelectEl({ value, onChange, options, isDark }) {
 /* ════════════════════════════════════════════════════════════════════════ */
 function InsightsPage() {
     const { isDark } = useTheme();
+    const { refreshKey } = useData();
 
     const [burnRate,      setBurnRate]      = useState(null);
     const [anomalies,     setAnomalies]     = useState([]);
@@ -136,13 +139,31 @@ function InsightsPage() {
     const [loadingDNA,   setLoadingDNA]   = useState(true);
     const [loadingDelta, setLoadingDelta] = useState(true);
 
+    const [editingKeyword,  setEditingKeyword]  = useState(null);  // which keyword is being edited
+    const [editValue,       setEditValue]       = useState("");     // current input value
+    const [renamingLoading, setRenamingLoading] = useState(false);
+
+    async function handleRename(oldKeyword) {
+        if (!editValue.trim() || editValue.trim() === oldKeyword) { setEditingKeyword(null); return; }
+        setRenamingLoading(true);
+        try {
+            await renameKeyword(oldKeyword, editValue.trim());
+            await fetchSubs();
+        } catch (e) {
+            console.error("Rename failed", e);
+        } finally {
+            setRenamingLoading(false);
+            setEditingKeyword(null);
+        }
+    }
+
     const [anomMonth, setAnomalyMonth] = useState(now().getMonth() + 1);
     const [anomYear,  setAnomalyYear]  = useState(now().getFullYear());
     const [dnaMonths, setDnaMonths]    = useState(null);
-    const [d1Month,   setD1Month]      = useState(now().getMonth() + 1);
-    const [d1Year,    setD1Year]       = useState(now().getFullYear());
-    const [d2Month,   setD2Month]      = useState(now().getMonth() === 0 ? 12 : now().getMonth());
-    const [d2Year,    setD2Year]       = useState(now().getMonth() === 0 ? now().getFullYear() - 1 : now().getFullYear());
+    const [d1Month,   setD1Month]      = useState(now().getMonth() === 0 ? 12 : now().getMonth());
+    const [d1Year,    setD1Year]       = useState(now().getMonth() === 0 ? now().getFullYear() - 1 : now().getFullYear());
+    const [d2Month,   setD2Month]      = useState(now().getMonth() + 1);
+    const [d2Year,    setD2Year]       = useState(now().getFullYear());
 
     const fetchBurn  = useCallback(async () => { setLoadingBurn(true);  try { setBurnRate(await getDailyBurnRate()); } catch { setBurnRate(null); } finally { setLoadingBurn(false); } }, []);
     const fetchMerch = useCallback(async () => { setLoadingMerch(true); try { setMerchants(await getMerchantLeaderboard()); } catch { setMerchants([]); } finally { setLoadingMerch(false); } }, []);
@@ -162,13 +183,13 @@ function InsightsPage() {
 
     const fetchDelta = useCallback(async () => {
         setLoadingDelta(true);
-        try { setMonthlyDelta(await getMonthlyDelta(d1Month, d1Year, d2Month, d2Year)); } catch { setMonthlyDelta([]); }
+        try { setMonthlyDelta(await getMonthlyDelta(d2Month, d2Year, d1Month, d1Year)); } catch { setMonthlyDelta([]); }
         finally { setLoadingDelta(false); }
     }, [d1Month, d1Year, d2Month, d2Year]);
 
-    useEffect(() => { void fetchBurn();      }, [fetchBurn]);
-    useEffect(() => { void fetchMerch();     }, [fetchMerch]);
-    useEffect(() => { void fetchSubs();      }, [fetchSubs]);
+    useEffect(() => { void fetchBurn();      }, [fetchBurn,  refreshKey]);
+    useEffect(() => { void fetchMerch();     }, [fetchMerch, refreshKey]);
+    useEffect(() => { void fetchSubs();      }, [fetchSubs,  refreshKey]);
     useEffect(() => { void fetchAnomalies(); }, [fetchAnomalies]);
     useEffect(() => { void fetchDNA();       }, [fetchDNA]);
     useEffect(() => { void fetchDelta();     }, [fetchDelta]);
@@ -506,8 +527,27 @@ function InsightsPage() {
                                     <div key={i} className="rounded-xl px-3 py-3" style={{ background: isDark ? "rgba(49,57,77,0.40)" : "rgba(16,185,129,0.04)", border: isDue ? `1px solid rgba(245,158,11,0.35)` : isDark ? "1px solid rgba(78,222,163,0.06)" : "1px solid rgba(16,185,129,0.10)" }}>
                                         <div className="flex items-start justify-between gap-2">
                                             <div className="min-w-0 flex-1">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-text-primary text-sm font-bold truncate">{s.keyword}</span>
+                                            <div className="flex items-center gap-2">
+                                                    {editingKeyword === s.keyword ? (
+                                                        <>
+                                                            <input
+                                                                autoFocus
+                                                                value={editValue}
+                                                                onChange={e => setEditValue(e.target.value)}
+                                                                onKeyDown={e => { if (e.key === "Enter") handleRename(s.keyword); if (e.key === "Escape") setEditingKeyword(null); }}
+                                                                style={{ background: isDark ? "rgba(49,57,77,0.9)" : "rgba(16,185,129,0.07)", color: isDark ? "#e2e8f0" : "#0D4A2A", border: isDark ? "1px solid rgba(78,222,163,0.35)" : "1px solid rgba(16,185,129,0.35)", borderRadius: "6px", padding: "2px 7px", fontSize: "13px", fontWeight: 700, outline: "none", width: "120px" }}
+                                                            />
+                                                            <button onClick={() => handleRename(s.keyword)} disabled={renamingLoading} style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 5, background: isDark ? "rgba(78,222,163,0.15)" : "rgba(16,185,129,0.12)", color: isDark ? "#4edea3" : "#059669", border: "none", cursor: "pointer" }}>
+                                                                {renamingLoading ? "..." : "Save"}
+                                                            </button>
+                                                            <button onClick={() => setEditingKeyword(null)} style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 5, background: "rgba(239,68,68,0.10)", color: "#ef4444", border: "none", cursor: "pointer" }}>✕</button>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <span className="text-text-primary text-sm font-bold truncate">{s.keyword}</span>
+                                                            <button onClick={() => { setEditingKeyword(s.keyword); setEditValue(s.keyword); }} style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 4, background: isDark ? "rgba(78,222,163,0.08)" : "rgba(16,185,129,0.08)", color: isDark ? "#4edea3" : "#059669", border: isDark ? "1px solid rgba(78,222,163,0.15)" : "1px solid rgba(16,185,129,0.15)", cursor: "pointer" }}>rename</button>
+                                                        </>
+                                                    )}
                                                     {isDue && (
                                                         <span style={{ fontSize: 10, fontWeight: 800, padding: "1px 6px", borderRadius: 5, background: "rgba(245,158,11,0.15)", color: "#f59e0b", flexShrink: 0 }}>
                                                             Due in {daysUntilNext}d

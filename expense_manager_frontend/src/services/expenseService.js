@@ -59,3 +59,8 @@ export async function getExpenseById(expenseId) {
     const response = await api.get(`/expense/${expenseId}/Id`);
     return response.data;
 }
+
+export async function renameKeyword(oldKeyword, newKeyword) {
+    const response = await api.patch(`/expense/renameKeyword?oldKeyword=${encodeURIComponent(oldKeyword)}&newKeyword=${encodeURIComponent(newKeyword)}`);
+    return response.data;
+}

@@ -467,4 +467,16 @@ public class ExpenseService
         return responses;
     }
 
+    public String renameKeyword(User user, String oldKeyword, String newKeyword)
+    {
+        List<Expense> expenses = repo.findAllByUserAndKeyword(user, oldKeyword);
+        if (expenses.isEmpty()) throw new NotFoundException("No expenses found with keyword: " + oldKeyword);
+        for (Expense expense : expenses)
+        {
+            expense.setKeyword(newKeyword);
+        }
+        repo.saveAll(expenses);
+        return newKeyword;
+    }
+
 }
