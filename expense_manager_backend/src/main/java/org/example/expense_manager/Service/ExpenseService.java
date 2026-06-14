@@ -479,4 +479,16 @@ public class ExpenseService
         return newKeyword;
     }
 
+    public List<ExpenseResponseDTO> getExpensesByKeyword(User user, String keyword)
+    {
+        List<Expense> expenses = repo.findAllByUserAndKeyword(user, keyword);
+        if (expenses.isEmpty()) throw new NotFoundException("No expenses found for keyword: " + keyword);
+        List<ExpenseResponseDTO> responses = new ArrayList<>();
+        for (var expense : expenses)
+        {
+            responses.add(convertToResponse(expense));
+        }
+        return responses;
+    }
+
 }

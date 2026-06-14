@@ -16,17 +16,17 @@ function DashBoard() {
     const [recentExpenses,   setRecentExpenses]   = useState([]);
     const [isLoading,        setIsLoading]        = useState(true);
     const [error,            setError]            = useState(null);
+    const [selectedYear,     setSelectedYear]     = useState(new Date().getFullYear());
 
     const { refreshKey } = useData();
 
     useEffect(() => {
         async function fetchDashboardData() {
             try {
-                const currentYear = new Date().getFullYear();
                 const [financial, budget, annual, expenses] = await Promise.all([
                     getFinancialSummary(),
                     getBudgetStatus(),
-                    getAnnualSummary(currentYear),
+                    getAnnualSummary(selectedYear),
                     getSortedExpenses("expenseTimestamp", "desc")
                 ]);
                 setFinancialSummary(financial);
@@ -40,7 +40,7 @@ function DashBoard() {
             }
         }
         fetchDashboardData().catch(console.error);
-    }, [refreshKey]);
+    }, [refreshKey, selectedYear]);
 
     if (isLoading) return <LoadingState />;
     if (error)     return <ErrorState message={error} />;
@@ -75,7 +75,7 @@ function DashBoard() {
                 </div>
             )}
 
-            {/* Stat Cards — 2 cols on mobile, 4 on desktop */}
+            {/* Stat Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
                 <StatCard
                     title="TOTAL SPENT"
@@ -113,9 +113,13 @@ function DashBoard() {
                 />
             </div>
 
-            {/* Charts — stack on mobile */}
+            {/* Charts */}
             <div className="flex flex-col md:flex-row gap-4">
-                <SpendingChart annualSummary={annualSummary} />
+                <SpendingChart
+                    annualSummary={annualSummary}
+                    selectedYear={selectedYear}
+                    onYearChange={setSelectedYear}
+                />
                 <CategoryDonut financialSummary={financialSummary} />
             </div>
 

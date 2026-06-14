@@ -151,5 +151,14 @@ public class ExpenseController
         return new ResponseEntity<>(service.renameKeyword(loggedInUser, oldKeyword, newKeyword), HttpStatus.OK);
     }
 
+    @GetMapping("/byKeyword")
+    public ResponseEntity<?> getExpensesByKeyword(@RequestParam String keyword)
+    {
+        User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
+        return new ResponseEntity<>(service.getExpensesByKeyword(loggedInUser, keyword), HttpStatus.OK);
+    }
+
+
+
 
 }

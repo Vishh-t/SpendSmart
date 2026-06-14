@@ -194,7 +194,7 @@ public class InsightsService
         for (Map.Entry<String, List<Expense>> entry : merchantWiseExpenses.entrySet())
         {
             List<Expense> spends = entry.getValue();
-            if (spends.size() < 2)
+            if (spends.size() < 3)
             {
                 continue;
             }
@@ -222,6 +222,18 @@ public class InsightsService
                     averageAmount = averageAmount.add(spend.getAmount());
                 }
                 averageAmount = averageAmount.divide(new BigDecimal(spends.size()), 4, RoundingMode.HALF_UP);
+
+                // Check amount consistency — real subscriptions have same amount every time
+                BigDecimal amountVariance = BigDecimal.ZERO;
+                for (Expense spend : spends)
+                {
+                    BigDecimal diff = spend.getAmount().subtract(averageAmount);
+                    amountVariance = amountVariance.add(diff.multiply(diff));
+                }
+                amountVariance = amountVariance.divide(new BigDecimal(spends.size()), 4, RoundingMode.HALF_UP);
+                BigDecimal amountStdDev = amountVariance.sqrt(new MathContext(10, RoundingMode.HALF_UP));
+                BigDecimal cv = amountStdDev.divide(averageAmount, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
+                if (cv.compareTo(new BigDecimal("10")) > 0) continue;
                 recurringExpense.setKeyword(entry.getKey());
                 recurringExpense.setAverageAmount(averageAmount);
                 recurringExpense.setAverageGap(averageGap);

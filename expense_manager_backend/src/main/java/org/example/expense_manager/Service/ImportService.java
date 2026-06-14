@@ -50,6 +50,7 @@ public class ImportService
     final private CategoryRepo categoryRepo;
     final private UserCategoryMappingRepo userCategoryMappingRepo;
     final private RestTemplate template;
+    final private org.example.expense_manager.Repository.UserRepo userRepo;
 
     private static final int  MAX_RETRIES   = 3;       // 3 attempts per model
     private static final long INITIAL_DELAY = 3000L;   // 3s → 6s → 12s
@@ -371,6 +372,10 @@ public class ImportService
         }
 
         String[] pages = statementText.split("\f");
+        if (pages.length > 50)
+        {
+            throw new AppException("PDF too large — maximum 50 pages allowed. Please upload a shorter statement.");
+        }
         StringBuilder text = new StringBuilder();
         StringBuilder allResponses = new StringBuilder();
         ObjectMapper mapper = new ObjectMapper();
@@ -492,6 +497,27 @@ public class ImportService
 
     public List<ParsedTransactionDTO> parseStatement(User user, MultipartFile file, boolean includeCredits)
     {
+        // ── Rate limiting ──
+        LocalDate today = LocalDate.now();
+        if (user.getLastImportDate() == null || !user.getLastImportDate().equals(today))
+        {
+            user.setImportCountToday(0);
+            // reset monthly count if new month
+            if (user.getLastImportDate() == null || user.getLastImportDate().getMonth() != today.getMonth())
+            {
+                user.setImportCountMonth(0);
+            }
+            user.setLastImportDate(today);
+        }
+        if (user.getImportCountToday() >= 3)
+            throw new AppException("Daily import limit reached (3/day). Try again tomorrow.");
+        if (user.getImportCountMonth() >= 10)
+            throw new AppException("Monthly import limit reached (10/month). Resets next month.");
+
+        user.setImportCountToday(user.getImportCountToday() + 1);
+        user.setImportCountMonth(user.getImportCountMonth() + 1);
+        userRepo.save(user);
+        // ── End rate limiting ──
         String text = extractTextFromPdf(file);
         String strippedText = stripSensitiveData(text);
         List<Category> categories = categoryRepo.findAllByUser(user);

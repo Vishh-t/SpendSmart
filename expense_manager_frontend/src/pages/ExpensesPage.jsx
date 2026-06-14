@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Search, ArrowUpDown } from "lucide-react";
 import { getSortedExpenses, getExpensesByCategory, deleteExpense, getFinancialSummary } from "../services/expenseService.js";
 import { getAllCategories } from "../services/categoryService.js";
@@ -153,14 +153,14 @@ function ExpensesPage() {
                         </button>
                         {dropdownOpen && (
                             <div className="absolute top-full mt-1 left-0 w-full z-20 rounded-lg shadow-lg overflow-y-auto"
-                                style={{ backgroundColor: "rgba(var(--raw-dropdown-bg), 0.97)", backdropFilter: "blur(12px)", border: "1px solid rgba(78, 222, 163, 0.15)", maxHeight: "224px" }}>
+                                 style={{ backgroundColor: "rgba(var(--raw-dropdown-bg), 0.97)", backdropFilter: "blur(12px)", border: "1px solid rgba(78, 222, 163, 0.15)", maxHeight: "224px" }}>
                                 <button onClick={() => handleCategoryChange("all")}
-                                    className={`w-full text-left px-4 py-2.5 text-sm hover:bg-surface-bright ${selectedCategory === "all" ? "text-primary" : "text-text-secondary"}`}>
+                                        className={`w-full text-left px-4 py-2.5 text-sm hover:bg-surface-bright ${selectedCategory === "all" ? "text-primary" : "text-text-secondary"}`}>
                                     All Categories
                                 </button>
                                 {categories.map((cat) => (
                                     <button key={cat.categoryId} onClick={() => handleCategoryChange(String(cat.categoryId))}
-                                        className={`w-full text-left px-4 py-2.5 text-sm hover:bg-surface-bright ${selectedCategory === String(cat.categoryId) ? "text-primary" : "text-text-secondary"}`}>
+                                            className={`w-full text-left px-4 py-2.5 text-sm hover:bg-surface-bright ${selectedCategory === String(cat.categoryId) ? "text-primary" : "text-text-secondary"}`}>
                                         {cat.categoryName}
                                     </button>
                                 ))}
@@ -180,60 +180,60 @@ function ExpensesPage() {
                 </div>
             </div>
 
-            {/* Desktop Table */}
+            {/* ── Desktop Table (100% Original Logic & Layout) ── */}
             <div className="bg-surface-high rounded-xl hidden md:block">
                 <table className="w-full">
                     <thead>
-                        <tr className="text-text-secondary text-xs tracking-widest border-b border-surface-bright">
-                            <th className="text-left p-5 font-medium">DATE</th>
-                            <th className="text-left p-5 font-medium">DESCRIPTION</th>
-                            <th className="text-left p-5 font-medium">CATEGORY</th>
-                            <th className="text-right p-5 font-medium">AMOUNT</th>
-                            <th className="text-right p-5 font-medium">ACTIONS</th>
-                        </tr>
+                    <tr className="text-text-secondary text-xs tracking-widest border-b border-surface-bright">
+                        <th className="text-left p-5 font-medium">DATE</th>
+                        <th className="text-left p-5 font-medium">DESCRIPTION</th>
+                        <th className="text-left p-5 font-medium">CATEGORY</th>
+                        <th className="text-right p-5 font-medium">AMOUNT</th>
+                        <th className="text-right p-5 font-medium">ACTIONS</th>
+                    </tr>
                     </thead>
                     <tbody>
-                        {paginatedExpenses.length === 0 ? (
-                            <tr><td colSpan={5} className="text-center text-text-secondary text-sm py-12">
-                                {expenses.length === 0 ? "No expenses yet — add one to get started." : "No expenses found."}
-                            </td></tr>
-                        ) : (
-                            paginatedExpenses.map((expense) => (
-                                <tr key={expense.expenseId} className="border-t border-surface-bright hover:bg-surface-bright/20 transition-all">
-                                    <td className="p-5 text-text-secondary text-xs">{formatDateUpper(expense.expenseTimestamp)}</td>
-                                    <td className="p-5 text-text-primary text-sm">{expense.description || "—"}</td>
-                                    <td className="p-5">
-                                        <button onClick={() => setCategoryModal({ id: expense.category?.categoryId, name: expense.category?.categoryName })}
+                    {paginatedExpenses.length === 0 ? (
+                        <tr><td colSpan={5} className="text-center text-text-secondary text-sm py-12">
+                            {expenses.length === 0 ? "No expenses yet — add one to get started." : "No expenses found."}
+                        </td></tr>
+                    ) : (
+                        paginatedExpenses.map((expense) => (
+                            <tr key={expense.expenseId} className="border-t border-surface-bright hover:bg-surface-bright/20 transition-all">
+                                <td className="p-5 text-text-secondary text-xs">{formatDateUpper(expense.expenseTimestamp)}</td>
+                                <td className="p-5 text-text-primary text-sm">{expense.description || "—"}</td>
+                                <td className="p-5">
+                                    <button onClick={() => setCategoryModal({ id: expense.category?.categoryId, name: expense.category?.categoryName })}
                                             className="text-xs px-3 py-1 rounded-full transition-all"
                                             style={{ backgroundColor: "var(--color-surface-low)", color: "var(--color-text-secondary)", border: "1px solid transparent" }}
                                             onMouseEnter={e => { e.currentTarget.style.boxShadow = `0 0 12px ${badgeGlowColor}`; e.currentTarget.style.border = `1px solid ${isDark ? "rgba(78,222,163,0.35)" : "rgba(16,185,129,0.35)"}`; e.currentTarget.style.color = "var(--color-primary)"; }}
                                             onMouseLeave={e => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.border = "1px solid transparent"; e.currentTarget.style.color = "var(--color-text-secondary)"; }}>
-                                            {expense.category?.categoryName}
-                                        </button>
-                                    </td>
-                                    <td className="p-5 text-right text-text-primary text-sm font-medium">-₹{formatCurrency(expense.amount)}</td>
-                                    <td className="p-5 text-right">
-                                        <div className="flex items-center justify-end gap-3">
-                                            <button onClick={() => setEditExpense(expense)} className="text-text-secondary text-xs hover:text-primary transition-all">Edit</button>
-                                            <button onClick={() => setConfirmExpenseId(expense.expenseId)} className="text-text-secondary text-xs hover:text-error transition-all">Delete</button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))
-                        )}
+                                        {expense.category?.categoryName}
+                                    </button>
+                                </td>
+                                <td className="p-5 text-right text-text-primary text-sm font-medium">-₹{formatCurrency(expense.amount)}</td>
+                                <td className="p-5 text-right">
+                                    <div className="flex items-center justify-end gap-3">
+                                        <button onClick={() => setEditExpense(expense)} className="text-text-secondary text-xs hover:text-primary transition-all">Edit</button>
+                                        <button onClick={() => setConfirmExpenseId(expense.expenseId)} className="text-text-secondary text-xs hover:text-error transition-all">Delete</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        ))
+                    )}
                     </tbody>
                     {showFilteredTotal && filteredExpenses.length > 0 && (
                         <tfoot>
-                            <tr className="border-t-2" style={{ borderColor: "rgba(78,222,163,0.20)" }}>
-                                <td colSpan={3} className="px-5 py-3 text-xs" style={{ color: "var(--color-text-secondary)" }}>
-                                    Total across {filteredExpenses.length} result{filteredExpenses.length !== 1 ? "s" : ""}
-                                    {searchQuery.trim() !== "" && <span className="ml-1">for <span style={{ color: "var(--color-text-primary)" }}>"{searchQuery}"</span></span>}
-                                </td>
-                                <td className="px-5 py-3 text-right text-sm font-bold" style={{ color: "var(--color-primary)", fontFamily: "'Berkeley Mono','Courier New',monospace" }}>
-                                    -₹{filteredTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </td>
-                                <td />
-                            </tr>
+                        <tr className="border-t-2" style={{ borderColor: "rgba(78,222,163,0.20)" }}>
+                            <td colSpan={3} className="px-5 py-3 text-xs" style={{ color: "var(--color-text-secondary)" }}>
+                                Total across {filteredExpenses.length} result{filteredExpenses.length !== 1 ? "s" : ""}
+                                {searchQuery.trim() !== "" && <span className="ml-1">for <span style={{ color: "var(--color-text-primary)" }}>"{searchQuery}"</span></span>}
+                            </td>
+                            <td className="px-5 py-3 text-right text-sm font-bold" style={{ color: "var(--color-primary)", fontFamily: "'Berkeley Mono','Courier New',monospace" }}>
+                                -₹{filteredTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                            <td />
+                        </tr>
                         </tfoot>
                     )}
                 </table>
@@ -247,13 +247,13 @@ function ExpensesPage() {
                             {Array.from({ length: totalPages }, (_, i) => i + 1)
                                 .filter(page => page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1)
                                 .map((page, index, arr) => (
-                                    <>
-                                        {index > 0 && arr[index - 1] !== page - 1 && <span key={`dots-${page}`} className="text-text-secondary text-xs">...</span>}
-                                        <button key={page} onClick={() => setCurrentPage(page)}
-                                            className={`w-8 h-8 rounded-lg text-xs transition-all ${currentPage === page ? "bg-primary text-surface font-semibold" : "bg-surface-low text-text-secondary hover:text-text-primary"}`}>
+                                    <React.Fragment key={page}>
+                                        {index > 0 && arr[index - 1] !== page - 1 && <span className="text-text-secondary text-xs">...</span>}
+                                        <button onClick={() => setCurrentPage(page)}
+                                                className={`w-8 h-8 rounded-lg text-xs transition-all ${currentPage === page ? "bg-primary text-surface font-semibold" : "bg-surface-low text-text-secondary hover:text-text-primary"}`}>
                                             {page}
                                         </button>
-                                    </>
+                                    </React.Fragment>
                                 ))}
                             <button onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages} className="w-8 h-8 rounded-lg bg-surface-low text-text-secondary text-xs hover:text-text-primary disabled:opacity-30">›</button>
                         </div>
@@ -261,15 +261,15 @@ function ExpensesPage() {
                 )}
             </div>
 
-            {/* Mobile Card List */}
-            <div className="flex flex-col gap-2 md:hidden">
+            {/* ── Mobile Card List (Strictly Separated Container to Prevent Inter-View Flipping) ── */}
+            <div className="flex flex-col gap-3 md:hidden">
                 {paginatedExpenses.length === 0 ? (
                     <p className="text-center text-text-secondary text-sm py-8">
                         {expenses.length === 0 ? "No expenses yet." : "No expenses found."}
                     </p>
                 ) : (
                     paginatedExpenses.map((expense) => (
-                        <div key={expense.expenseId} className="bg-surface-high rounded-xl p-4 flex items-start gap-3">
+                        <div key={expense.expenseId} className="bg-surface-high rounded-xl p-4 flex items-start gap-3 border border-surface-bright/40 shadow-sm">
                             <div className="flex-1 min-w-0">
                                 <p className="text-text-primary text-sm font-medium truncate">{expense.description || "—"}</p>
                                 <div className="flex items-center gap-2 mt-1.5 flex-wrap">
@@ -279,23 +279,24 @@ function ExpensesPage() {
                                     <span className="text-text-secondary text-[10px]">{formatDateUpper(expense.expenseTimestamp)}</span>
                                 </div>
                             </div>
-                            <div className="flex flex-col items-end gap-2 shrink-0">
+                            <div className="flex flex-col items-end gap-2 shrink-0 ml-2">
                                 <span className="text-text-primary text-sm font-semibold">-₹{formatCurrency(expense.amount)}</span>
-                                <div className="flex gap-3">
-                                    <button onClick={() => setEditExpense(expense)} className="text-primary text-xs">Edit</button>
-                                    <button onClick={() => setConfirmExpenseId(expense.expenseId)} className="text-error text-xs">Delete</button>
+                                <div className="flex gap-3 mt-1.5">
+                                    <button onClick={() => setEditExpense(expense)} className="text-primary text-xs font-medium">Edit</button>
+                                    <button onClick={() => setConfirmExpenseId(expense.expenseId)} className="text-error text-xs font-medium">Delete</button>
                                 </div>
                             </div>
                         </div>
                     ))
                 )}
-                {/* Mobile pagination */}
+
+                {/* Mobile Navigation controls strictly bound inside mobile tree context */}
                 {filteredExpenses.length > ITEMS_PER_PAGE && (
-                    <div className="flex items-center justify-between px-1 pt-2">
-                        <p className="text-text-secondary text-xs">{currentPage}/{totalPages}</p>
+                    <div className="flex items-center justify-between px-1 pt-3 border-t border-surface-bright/20 mt-1">
+                        <p className="text-text-secondary text-xs font-medium">Page {currentPage} of {totalPages}</p>
                         <div className="flex gap-2">
-                            <button onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1} className="w-8 h-8 rounded-lg bg-surface-high text-text-secondary text-xs disabled:opacity-30">‹</button>
-                            <button onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages} className="w-8 h-8 rounded-lg bg-surface-high text-text-secondary text-xs disabled:opacity-30">›</button>
+                            <button onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1} className="w-9 h-9 rounded-lg bg-surface-high text-text-secondary text-sm flex items-center justify-center border border-surface-bright active:bg-surface-bright disabled:opacity-30">‹</button>
+                            <button onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages} className="w-9 h-9 rounded-lg bg-surface-high text-text-secondary text-sm flex items-center justify-center border border-surface-bright active:bg-surface-bright disabled:opacity-30">›</button>
                         </div>
                     </div>
                 )}

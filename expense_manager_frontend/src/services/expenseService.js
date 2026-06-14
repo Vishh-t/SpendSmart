@@ -64,3 +64,8 @@ export async function renameKeyword(oldKeyword, newKeyword) {
     const response = await api.patch(`/expense/renameKeyword?oldKeyword=${encodeURIComponent(oldKeyword)}&newKeyword=${encodeURIComponent(newKeyword)}`);
     return response.data;
 }
+
+export async function getExpensesByKeyword(keyword) {
+    const response = await api.get(`/expense/byKeyword?keyword=${encodeURIComponent(keyword)}`);
+    return response.data;
+}

@@ -15,6 +15,12 @@ const MONTHS_FULL = ["January","February","March","April","May","June","July","A
 const BAR_COLORS_DARK  = ["#4edea3","#60a5fa","#f59e0b","#c084fc","#fb923c","#34d399","#f472b6","#38bdf8","#a3e635","#e879f9","#fbbf24","#2dd4bf"];
 const BAR_COLORS_LIGHT = ["#059669","#2563eb","#d97706","#7c3aed","#ea580c","#16a34a","#db2777","#0284c7","#65a30d","#c026d3","#b45309","#0d9488"];
 
+// build year options — current year and 4 years back
+function buildYearOptions() {
+    const current = new Date().getFullYear();
+    return Array.from({ length: 5 }, (_, i) => current - i);
+}
+
 function buildAnnualData(monthlyBreakdown) {
     if (!monthlyBreakdown) return [];
     return Object.entries(monthlyBreakdown).map(([month, amount]) => ({
@@ -33,28 +39,34 @@ function buildDayWiseData(expenses, month, year) {
     return days;
 }
 
-function SpendingChart({ annualSummary }) {
+function SpendingChart({ annualSummary, selectedYear, onYearChange }) {
 
-    const [chartType,         setChartType]         = useState("bar");
-    const [view,              setView]              = useState("annual");
-    const [selectedMonth,     setSelectedMonth]     = useState(new Date().getMonth() + 1);
-    const [dayWiseData,       setDayWiseData]       = useState([]);
-    const [isDayWiseLoading,  setIsDayWiseLoading]  = useState(false);
-    const [monthDropdownOpen, setMonthDropdownOpen] = useState(false);
+    const [chartType,          setChartType]          = useState("bar");
+    const [view,               setView]               = useState("annual");
+    const [selectedMonth,      setSelectedMonth]      = useState(new Date().getMonth() + 1);
+    const [dayWiseData,        setDayWiseData]        = useState([]);
+    const [isDayWiseLoading,   setIsDayWiseLoading]   = useState(false);
+    const [monthDropdownOpen,  setMonthDropdownOpen]  = useState(false);
+    const [yearDropdownOpen,   setYearDropdownOpen]   = useState(false);
 
-    // Ref for detecting outside clicks on the month dropdown
     const monthDropdownRef = useRef(null);
+    const yearDropdownRef  = useRef(null);
 
-    // Close dropdown when clicking anywhere outside it
     useEffect(() => {
         function handleClickOutside(e) {
-            if (monthDropdownRef.current && !monthDropdownRef.current.contains(e.target)) {
-                setMonthDropdownOpen(false);
-            }
+            if (monthDropdownRef.current && !monthDropdownRef.current.contains(e.target)) setMonthDropdownOpen(false);
+            if (yearDropdownRef.current  && !yearDropdownRef.current.contains(e.target))  setYearDropdownOpen(false);
         }
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
+
+    // when year changes while in monthly view, reload day-wise data
+    useEffect(() => {
+        if (view === "monthly") {
+            loadDayWise(selectedMonth, selectedYear);
+        }
+    }, [selectedYear]);
 
     const { isDark } = useTheme();
     const BAR_COLORS   = isDark ? BAR_COLORS_DARK : BAR_COLORS_LIGHT;
@@ -71,16 +83,16 @@ function SpendingChart({ annualSummary }) {
     const ctaText      = isDark ? "#003824" : "#ffffff";
     const dropdownBg   = isDark ? "rgba(19,27,46,0.97)" : "rgba(255,255,255,0.97)";
 
-    const currentYear = new Date().getFullYear();
-    const annualData  = buildAnnualData(annualSummary?.monthlyBreakdown);
+    const annualData = buildAnnualData(annualSummary?.monthlyBreakdown);
+    const yearOptions = buildYearOptions();
 
-    async function loadDayWise(month) {
+    async function loadDayWise(month, year = selectedYear) {
         setIsDayWiseLoading(true);
         setSelectedMonth(month);
         setMonthDropdownOpen(false);
         try {
-            const summary = await getMonthlySummary(month, currentYear);
-            setDayWiseData(buildDayWiseData(summary.expenses || [], month, currentYear));
+            const summary = await getMonthlySummary(month, year);
+            setDayWiseData(buildDayWiseData(summary.expenses || [], month, year));
         } catch (err) {
             console.error("Day-wise fetch failed:", err);
             setDayWiseData([]);
@@ -91,10 +103,17 @@ function SpendingChart({ annualSummary }) {
 
     async function switchToMonthly() {
         setView("monthly");
-        await loadDayWise(selectedMonth);
+        await loadDayWise(selectedMonth, selectedYear);
     }
 
     function switchToAnnual() { setView("annual"); }
+
+    function handleYearChange(year) {
+        onYearChange(year);
+        setYearDropdownOpen(false);
+        // if in annual view, dashboard refetches annualSummary automatically via selectedYear
+        // if in monthly view, useEffect above handles it
+    }
 
     const chartData = view === "annual" ? annualData : dayWiseData;
 
@@ -117,10 +136,12 @@ function SpendingChart({ annualSummary }) {
     return (
         <div className="bg-surface-high rounded-xl p-4 md:p-5 flex-1">
 
-            {/* Header row — stacks on mobile */}
+            {/* Header row */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 md:mb-5">
                 <h2 className="text-text-primary font-semibold text-sm md:text-base">
-                    {view === "annual" ? "Monthly Spending Trend" : `Day-wise — ${MONTHS[selectedMonth - 1]} ${currentYear}`}
+                    {view === "annual"
+                        ? `Monthly Spending — ${selectedYear}`
+                        : `Day-wise — ${MONTHS[selectedMonth - 1]} ${selectedYear}`}
                 </h2>
 
                 <div className="flex items-center gap-2 flex-wrap">
@@ -151,7 +172,7 @@ function SpendingChart({ annualSummary }) {
                         </button>
                     </div>
 
-                    {/* Month selector — only visible in monthly view */}
+                    {/* Month selector — only in monthly view */}
                     {view === "monthly" && (
                         <div className="relative" ref={monthDropdownRef}>
                             <button
@@ -164,36 +185,13 @@ function SpendingChart({ annualSummary }) {
                                     className={`transition-transform ${monthDropdownOpen ? "rotate-180" : ""}`}
                                     style={{ color: iconInactive }} />
                             </button>
-
                             {monthDropdownOpen && (
-                                <div
-                                    className="absolute top-full mt-1 right-0 z-20 rounded-lg shadow-lg"
-                                    style={{
-                                        backgroundColor: dropdownBg,
-                                        backdropFilter: "blur(12px)",
-                                        border: `1px solid ${toggleBorder}`,
-                                        minWidth: "120px",
-                                        // Show exactly 3 items — each item is ~32px tall so 3 × 32 = 96px
-                                        maxHeight: "96px",
-                                        overflowY: "auto",
-                                        // Custom scrollbar matching the theme
-                                        scrollbarWidth: "thin",
-                                        scrollbarColor: isDark
-                                            ? "rgba(78,222,163,0.35) transparent"
-                                            : "rgba(0,108,73,0.25) transparent",
-                                    }}
-                                >
+                                <div className="absolute top-full mt-1 right-0 z-20 rounded-lg shadow-lg"
+                                    style={{ backgroundColor: dropdownBg, backdropFilter: "blur(12px)", border: `1px solid ${toggleBorder}`, minWidth: "120px", maxHeight: "96px", overflowY: "auto" }}>
                                     {MONTHS_FULL.map((m, i) => (
-                                        <button
-                                            key={i}
-                                            onClick={() => loadDayWise(i + 1)}
+                                        <button key={i} onClick={() => loadDayWise(i + 1, selectedYear)}
                                             className="w-full text-left px-4 py-2 text-xs transition-all hover:bg-surface-bright"
-                                            style={{
-                                                color: selectedMonth === i + 1
-                                                    ? "var(--color-primary)"
-                                                    : "var(--color-text-secondary)"
-                                            }}
-                                        >
+                                            style={{ color: selectedMonth === i + 1 ? "var(--color-primary)" : "var(--color-text-secondary)" }}>
                                             {m}
                                         </button>
                                     ))}
@@ -201,6 +199,33 @@ function SpendingChart({ annualSummary }) {
                             )}
                         </div>
                     )}
+
+                    {/* Year selector — always visible */}
+                    <div className="relative" ref={yearDropdownRef}>
+                        <button
+                            onClick={() => setYearDropdownOpen(o => !o)}
+                            className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg transition-all"
+                            style={{ backgroundColor: toggleBg, color: toggleText, border: `1px solid ${toggleBorder}` }}
+                        >
+                            {selectedYear}
+                            <ChevronDown size={12}
+                                className={`transition-transform ${yearDropdownOpen ? "rotate-180" : ""}`}
+                                style={{ color: iconInactive }} />
+                        </button>
+                        {yearDropdownOpen && (
+                            <div className="absolute top-full mt-1 right-0 z-20 rounded-lg shadow-lg"
+                                style={{ backgroundColor: dropdownBg, backdropFilter: "blur(12px)", border: `1px solid ${toggleBorder}`, minWidth: "90px" }}>
+                                {yearOptions.map(y => (
+                                    <button key={y} onClick={() => handleYearChange(y)}
+                                        className="w-full text-left px-4 py-2 text-xs transition-all hover:bg-surface-bright"
+                                        style={{ color: selectedYear === y ? "var(--color-primary)" : "var(--color-text-secondary)" }}>
+                                        {y}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
                 </div>
             </div>
 

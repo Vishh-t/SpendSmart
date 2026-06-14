@@ -11,6 +11,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 
@@ -38,6 +39,15 @@ public class User implements UserDetails
 
     @Column(columnDefinition = "DECIMAL DEFAULT 5000")
     private BigDecimal monthlyBudget = BigDecimal.valueOf(5000);
+
+    @Column(columnDefinition = "INT DEFAULT 0")
+    private int importCountToday = 0;
+
+    @Column(columnDefinition = "INT DEFAULT 0")
+    private int importCountMonth = 0;
+
+    @Column
+    private LocalDate lastImportDate;
 
     @NotBlank
     @Email
