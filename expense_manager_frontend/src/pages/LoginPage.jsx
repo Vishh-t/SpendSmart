@@ -71,7 +71,7 @@ function LoginPage() {
 
             {/* Logo */}
             <div className="mb-8 text-center">
-                <h1 className="text-3xl font-bold text-primary">⬡ SpendSmart</h1>
+                <h1 className="text-3xl font-bold text-primary">⬡ Expenzo</h1>
                 <p className="text-xs tracking-widest text-text-secondary mt-1">PRECISION LEDGER</p>
             </div>
 

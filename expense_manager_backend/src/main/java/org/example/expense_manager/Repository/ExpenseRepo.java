@@ -3,6 +3,8 @@ package org.example.expense_manager.Repository;
 import org.example.expense_manager.Entity.Category;
 import org.example.expense_manager.Entity.Expense;
 import org.example.expense_manager.Entity.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -33,4 +35,6 @@ public interface ExpenseRepo extends JpaRepository<Expense, Integer>
     Expense findFirstByUserOrderByExpenseTimestampAsc(User user);
 
     Expense findFirstByUserOrderByExpenseTimestampDesc(User user);
+
+    Page<Expense> findAllByUser(User user, Pageable pageable);
 }

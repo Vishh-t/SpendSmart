@@ -16,7 +16,10 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @Data
 @Entity
-@Table(name = "expenses")
+@Table(name = "expenses", indexes = {
+        @Index(name = "idx_user_timestamp", columnList = "user_id, expense_timestamp"),
+        @Index(name = "idx_user_keyword", columnList = "user_id, keyword")
+})
 public class Expense
 {
     @Id

@@ -16,6 +16,9 @@ import org.example.expense_manager.Exceptions.NotFoundException;
 import org.example.expense_manager.Exceptions.UnauthorizedUserException;
 import org.example.expense_manager.Repository.CategoryRepo;
 import org.example.expense_manager.Repository.ExpenseRepo;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
@@ -506,6 +509,12 @@ public class ExpenseService
             responses.add(convertToResponse(expense));
         }
         return responses;
+    }
+
+    public Page<ExpenseResponseDTO> getPaginatedExpenses(User user, int page, int size, String sortBy, String direction) {
+        Sort sort = direction.equalsIgnoreCase("desc") ? Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+        return repo.findAllByUser(user, pageable).map(this::convertToResponse);
     }
 
 }

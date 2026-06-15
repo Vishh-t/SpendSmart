@@ -25,7 +25,7 @@ function SideBar({ onAddExpense, collapsed, onToggle, isMobileDrawer = false }) 
             <div className="flex items-center justify-between px-4 py-6 mb-4">
                 {(!collapsed || isMobileDrawer) && (
                     <h1 className="text-xl font-bold whitespace-nowrap overflow-hidden" style={{ color: "#6EF0B8" }}>
-                        ⬡ SpendSmart
+                        ⬡ Expenzo
                     </h1>
                 )}
                 <button

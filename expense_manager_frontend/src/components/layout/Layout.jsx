@@ -90,7 +90,7 @@ function Layout({ children }) {
                         >
                             <Menu size={18} />
                         </button>
-                        <span className="text-sm font-bold" style={{ color: "var(--color-primary)" }}>⬡ SpendSmart</span>
+                        <span className="text-sm font-bold" style={{ color: "var(--color-primary)" }}>⬡ Expenzo</span>
                     </div>
 
                     <div className="flex items-center gap-2 ml-auto">
@@ -154,7 +154,7 @@ function Layout({ children }) {
                             className="text-xs"
                             style={{ fontFamily: "'Berkeley Mono','Courier New',monospace", color: isDark ? "rgba(136,146,164,0.45)" : "rgba(74,99,88,0.50)" }}
                         >
-                            SpendSmart · Precision Ledger · <span style={{ color: isDark ? "rgba(78,222,163,0.55)" : "rgba(0,108,73,0.55)" }}>v1.0 Beta</span>
+                            Expenzo · Precision Ledger · <span style={{ color: isDark ? "rgba(78,222,163,0.55)" : "rgba(0,108,73,0.55)" }}>v1.0 Beta</span>
                         </span>
                         <div className="flex items-center gap-4 flex-wrap">
                             <a
@@ -167,7 +167,7 @@ function Layout({ children }) {
                             >
                                 Feedback ↗
                             </a>
-                            <a href="https://github.com/Vishh-t/SpendSmart" target="_blank" rel="noopener noreferrer"
+                            <a href="https://github.com/Vishh-t/Expenzo" target="_blank" rel="noopener noreferrer"
                                 className="text-xs transition-all"
                                 style={{ color: isDark ? "rgba(136,146,164,0.60)" : "rgba(74,99,88,0.65)", fontFamily: "'Berkeley Mono','Courier New',monospace" }}
                                 onMouseEnter={e => e.currentTarget.style.color = isDark ? "#8892a4" : "#4A6358"}

@@ -158,7 +158,16 @@ public class ExpenseController
         return new ResponseEntity<>(service.getExpensesByKeyword(loggedInUser, keyword), HttpStatus.OK);
     }
 
-
+    @GetMapping("/paginated")
+    public ResponseEntity<?> getPaginatedExpenses(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "expenseTimestamp") String sortBy,
+            @RequestParam(defaultValue = "desc") String direction)
+    {
+        User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
+        return new ResponseEntity<>(service.getPaginatedExpenses(loggedInUser, page, size, sortBy, direction), HttpStatus.OK);
+    }
 
 
 }

@@ -435,7 +435,7 @@ function MobileProfileView({ userInfo, onSaveBudget, onDeleteAccount, onLogout, 
             </div>
 
             <p className="text-center text-xs mt-2" style={{ color: isDark ? "rgba(136,146,164,0.35)" : "rgba(74,99,88,0.40)", fontFamily: "'Berkeley Mono','Courier New',monospace" }}>
-                SpendSmart · Precision Ledger
+                Expenzo · Precision Ledger
             </p>
         </div>
     );
@@ -590,7 +590,7 @@ function ProfilePage() {
 
                 <button onClick={logout} className="flex items-center gap-2 text-text-secondary text-sm hover:text-error transition-colors self-start mb-2">
                     <LogOut size={14} />
-                    Sign out of SpendSmart
+                    Sign out of Expenzo
                 </button>
             </div>
         </div>

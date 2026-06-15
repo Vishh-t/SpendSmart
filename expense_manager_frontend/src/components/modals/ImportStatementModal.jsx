@@ -703,7 +703,7 @@ function ImportStatementModal({ onClose, onSuccess }) {
                 <div className="flex items-center justify-between px-7 py-3 shrink-0"
                     style={{ borderTop: "1px solid rgba(78,222,163,0.07)", background: "linear-gradient(135deg,rgba(78,222,163,0.04) 0%,rgba(16,185,129,0.02) 100%)" }}>
                     <span className="text-xs" style={{ color: "var(--color-text-secondary)", fontFamily: "'Berkeley Mono','Courier New',monospace", opacity: 0.5 }}>
-                        SpendSmart · Precision Ledger
+                        Expenzo · Precision Ledger
                     </span>
                     <span className="text-xs" style={{ color: "var(--color-primary)", opacity: 0.4 }}>●</span>
                 </div>

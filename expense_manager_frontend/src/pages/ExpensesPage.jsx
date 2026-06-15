@@ -1,6 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Search, ArrowUpDown } from "lucide-react";
-import { getSortedExpenses, getExpensesByCategory, deleteExpense, getFinancialSummary } from "../services/expenseService.js";
+import {
+    getSortedExpenses,
+    getExpensesByCategory,
+    deleteExpense,
+    getFinancialSummary,
+    getPaginatedExpenses
+} from "../services/expenseService.js";
 import { getAllCategories } from "../services/categoryService.js";
 import { formatCurrency } from "../utils/formatCurrency.js";
 import { formatDateUpper } from "../utils/formatDate.js";
@@ -20,6 +26,11 @@ function ExpensesPage() {
     const [isLoading,        setIsLoading]        = useState(true);
     const [error,            setError]            = useState(null);
 
+    // Server-side pagination tracking
+    const [totalPages,       setTotalPages]       = useState(1);
+    const [totalElements,    setTotalElements]    = useState(0);
+    const [filteredTotal,    setFilteredTotal]    = useState(0);
+
     const [searchQuery,      setSearchQuery]      = useState("");
     const [selectedCategory, setSelectedCategory] = useState("all");
     const [sortBy,           setSortBy]           = useState("expenseTimestamp");
@@ -36,6 +47,7 @@ function ExpensesPage() {
     const { refreshKey, triggerRefresh } = useData();
 
     const badgeGlowColor = isDark ? "rgba(78, 222, 163, 0.55)" : "rgba(16, 185, 129, 0.45)";
+    const isFiltering = searchQuery.trim() !== "" || selectedCategory !== "all";
 
     useEffect(() => {
         function handleClickOutside(e) {
@@ -45,48 +57,81 @@ function ExpensesPage() {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    const filteredExpenses = expenses.filter(expense =>
-        expense.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        expense.category?.categoryName?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-
-    const filteredTotal = filteredExpenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
-    const showFilteredTotal = searchQuery.trim() !== "" || selectedCategory !== "all";
-
+    // Main Data Fetcher
     useEffect(() => {
-        async function fetchInitialData() {
+        async function loadData() {
             try {
-                const safeGet = (promise) => promise.catch(err => { if (err.response?.status === 404) return null; throw err; });
-                const [expensesData, categoriesData, summaryData] = await Promise.all([
-                    safeGet(getSortedExpenses(sortBy, order)),
-                    safeGet(getAllCategories()),
-                    safeGet(getFinancialSummary())
-                ]);
-                setExpenses(expensesData ?? []);
-                setCategories(categoriesData ?? []);
-                setFinancialSummary(summaryData ?? null);
+                setIsLoading(true);
+
+                // Fetch basic config data once
+                if (categories.length === 0) {
+                    const [cats, summary] = await Promise.all([
+                        getAllCategories().catch(() => []),
+                        getFinancialSummary().catch(() => null)
+                    ]);
+                    setCategories(cats);
+                    setFinancialSummary(summary);
+                }
+
+                if (!isFiltering) {
+                    // SERVER-SIDE PAGINATION (Default View)
+                    const data = await getPaginatedExpenses(currentPage - 1, ITEMS_PER_PAGE, sortBy, order);
+                    setExpenses(data.content || []);
+                    setTotalPages(data.totalPages || 1);
+                    setTotalElements(data.totalElements || 0);
+                } else {
+                    // CLIENT-SIDE FALLBACK (Active when searching or using category filters)
+                    let data = selectedCategory !== "all"
+                        ? await getExpensesByCategory(selectedCategory)
+                        : await getSortedExpenses(sortBy, order);
+
+                    // Apply text search instantly
+                    if (searchQuery.trim() !== "") {
+                        data = data.filter(e =>
+                            e.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            e.category?.categoryName?.toLowerCase().includes(searchQuery.toLowerCase())
+                        );
+                    }
+
+                    // Apply manual sorting if we fetched by category
+                    if (selectedCategory !== "all") {
+                        data.sort((a, b) => {
+                            let valA = sortBy === "amount" ? parseFloat(a.amount) : new Date(a.expenseTimestamp).getTime();
+                            let valB = sortBy === "amount" ? parseFloat(b.amount) : new Date(b.expenseTimestamp).getTime();
+                            return order === "desc" ? (valB > valA ? 1 : -1) : (valA > valB ? 1 : -1);
+                        });
+                    }
+
+                    // Calculate totals and slice for UI
+                    setFilteredTotal(data.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0));
+                    setTotalElements(data.length);
+                    setTotalPages(Math.ceil(data.length / ITEMS_PER_PAGE) || 1);
+
+                    const paginatedSlice = data.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+                    setExpenses(paginatedSlice);
+                }
             } catch (err) {
                 setError("Failed to load expenses.");
             } finally {
                 setIsLoading(false);
             }
         }
-        fetchInitialData().catch(console.error);
-    }, [refreshKey]);
 
-    async function handleCategoryChange(categoryId) {
-        setSelectedCategory(categoryId); setSearchQuery(""); setCurrentPage(1); setDropdownOpen(false);
-        try {
-            const data = categoryId === "all" ? await getSortedExpenses(sortBy, order) : await getExpensesByCategory(categoryId);
-            setExpenses(data);
-        } catch { setExpenses([]); }
+        loadData();
+    }, [currentPage, sortBy, order, selectedCategory, searchQuery, refreshKey]);
+
+    function handleCategoryChange(categoryId) {
+        setSelectedCategory(categoryId);
+        setSearchQuery("");
+        setCurrentPage(1);
+        setDropdownOpen(false);
     }
 
-    async function handleSortChange(newSortBy) {
+    function handleSortChange(newSortBy) {
         const newOrder = sortBy === newSortBy && order === "desc" ? "asc" : "desc";
-        setSortBy(newSortBy); setOrder(newOrder); setCurrentPage(1);
-        try { const data = await getSortedExpenses(newSortBy, newOrder); setExpenses(data); }
-        catch { }
+        setSortBy(newSortBy);
+        setOrder(newOrder);
+        setCurrentPage(1);
     }
 
     async function handleDelete(expenseId) {
@@ -96,11 +141,8 @@ function ExpensesPage() {
 
     async function handleEditSuccess() { setEditExpense(null); triggerRefresh(); }
 
-    const totalPages        = Math.ceil(filteredExpenses.length / ITEMS_PER_PAGE);
-    const paginatedExpenses = filteredExpenses.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
-
-    if (isLoading) return <LoadingState />;
-    if (error)     return <ErrorState message={error} />;
+    if (isLoading && expenses.length === 0) return <LoadingState />;
+    if (error) return <ErrorState message={error} />;
 
     return (
         <div className="flex flex-col gap-4 md:gap-6">
@@ -111,7 +153,7 @@ function ExpensesPage() {
                     <h1 className="text-2xl md:text-3xl font-bold text-text-primary">Expenses</h1>
                     <p className="text-text-secondary text-xs md:text-sm mt-1">Review and manage your precision ledger entries.</p>
                 </div>
-                {/* Stats — hidden on mobile to save space */}
+                {/* Stats */}
                 <div className="hidden sm:flex gap-6 md:gap-8">
                     <div className="text-right">
                         <p className="text-text-secondary text-xs tracking-widest">TOTAL BURN</p>
@@ -137,7 +179,10 @@ function ExpensesPage() {
                         type="text"
                         placeholder="Search..."
                         value={searchQuery}
-                        onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                        onChange={(e) => {
+                            setSearchQuery(e.target.value);
+                            setCurrentPage(1);
+                        }}
                         className="bg-transparent text-text-primary text-sm outline-none placeholder-text-secondary w-full min-w-0"
                     />
                 </div>
@@ -184,7 +229,7 @@ function ExpensesPage() {
                 </div>
             </div>
 
-            {/* ── Desktop Table (100% Original Logic & Layout) ── */}
+            {/* Desktop Table */}
             <div className="bg-surface-high rounded-xl hidden md:block">
                 <table className="w-full">
                     <thead>
@@ -197,12 +242,12 @@ function ExpensesPage() {
                     </tr>
                     </thead>
                     <tbody>
-                    {paginatedExpenses.length === 0 ? (
+                    {expenses.length === 0 ? (
                         <tr><td colSpan={5} className="text-center text-text-secondary text-sm py-12">
-                            {expenses.length === 0 ? "No expenses yet — add one to get started." : "No expenses found."}
+                            {totalElements === 0 && !isFiltering ? "No expenses yet — add one to get started." : "No expenses found."}
                         </td></tr>
                     ) : (
-                        paginatedExpenses.map((expense) => (
+                        expenses.map((expense) => (
                             <tr key={expense.expenseId} className="border-t border-surface-bright hover:bg-surface-bright/20 transition-all">
                                 <td className="p-5 text-text-secondary text-xs">{formatDateUpper(expense.expenseTimestamp)}</td>
                                 <td className="p-5 text-text-primary text-sm">{expense.description || "—"}</td>
@@ -226,11 +271,11 @@ function ExpensesPage() {
                         ))
                     )}
                     </tbody>
-                    {showFilteredTotal && filteredExpenses.length > 0 && (
+                    {isFiltering && expenses.length > 0 && (
                         <tfoot>
                         <tr className="border-t-2" style={{ borderColor: "rgba(78,222,163,0.20)" }}>
                             <td colSpan={3} className="px-5 py-3 text-xs" style={{ color: "var(--color-text-secondary)" }}>
-                                Total across {filteredExpenses.length} result{filteredExpenses.length !== 1 ? "s" : ""}
+                                Total across {totalElements} result{totalElements !== 1 ? "s" : ""}
                                 {searchQuery.trim() !== "" && <span className="ml-1">for <span style={{ color: "var(--color-text-primary)" }}>"{searchQuery}"</span></span>}
                             </td>
                             <td className="px-5 py-3 text-right text-sm font-bold" style={{ color: "var(--color-primary)", fontFamily: "'Berkeley Mono','Courier New',monospace" }}>
@@ -241,10 +286,10 @@ function ExpensesPage() {
                         </tfoot>
                     )}
                 </table>
-                {filteredExpenses.length > 0 && (
+                {totalElements > 0 && (
                     <div className="flex items-center justify-between px-5 py-4 border-t border-surface-bright">
                         <p className="text-text-secondary text-xs">
-                            Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, filteredExpenses.length)} of {filteredExpenses.length} entries
+                            Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, totalElements)} of {totalElements} entries
                         </p>
                         <div className="flex items-center gap-2">
                             <button onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1} className="w-8 h-8 rounded-lg bg-surface-low text-text-secondary text-xs hover:text-text-primary disabled:opacity-30">‹</button>
@@ -265,14 +310,14 @@ function ExpensesPage() {
                 )}
             </div>
 
-            {/* ── Mobile Card List (Strictly Separated Container to Prevent Inter-View Flipping) ── */}
+            {/* Mobile Card List */}
             <div className="flex flex-col gap-3 md:hidden">
-                {paginatedExpenses.length === 0 ? (
+                {expenses.length === 0 ? (
                     <p className="text-center text-text-secondary text-sm py-8">
-                        {expenses.length === 0 ? "No expenses yet." : "No expenses found."}
+                        {totalElements === 0 && !isFiltering ? "No expenses yet." : "No expenses found."}
                     </p>
                 ) : (
-                    paginatedExpenses.map((expense) => (
+                    expenses.map((expense) => (
                         <div key={expense.expenseId} className="bg-surface-high rounded-xl p-4 flex items-start gap-3 border border-surface-bright/40 shadow-sm">
                             <div className="flex-1 min-w-0">
                                 <p className="text-text-primary text-sm font-medium truncate">{expense.description || "—"}</p>
@@ -294,8 +339,7 @@ function ExpensesPage() {
                     ))
                 )}
 
-                {/* Mobile Navigation controls strictly bound inside mobile tree context */}
-                {filteredExpenses.length > ITEMS_PER_PAGE && (
+                {totalElements > ITEMS_PER_PAGE && (
                     <div className="flex items-center justify-between px-1 pt-3 border-t border-surface-bright/20 mt-1">
                         <p className="text-text-secondary text-xs font-medium">Page {currentPage} of {totalPages}</p>
                         <div className="flex gap-2">

@@ -20,6 +20,11 @@ export async function getAllExpenses() {
     return response.data;
 }
 
+export async function getPaginatedExpenses(page, size, sortBy, direction) {
+    const response = await api.get(`/expense/paginated?page=${page}&size=${size}&sortBy=${sortBy}&direction=${direction}`);
+    return response.data;
+}
+
 export async function getSortedExpenses(sortBy, order) {
     const response = await api.get(`/expense/sorted?sortBy=${sortBy}&order=${order}`);
     return response.data;
