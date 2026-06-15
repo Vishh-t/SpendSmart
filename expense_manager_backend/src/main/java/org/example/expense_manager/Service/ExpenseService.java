@@ -427,6 +427,22 @@ public class ExpenseService
         Expense lowestExpense = expenses.stream().min(Comparator.comparing(Expense::getAmount)).orElse(null);
         BigDecimal averageExpenseValue = expenses.isEmpty() ? BigDecimal.ZERO : totalSpent.divide(BigDecimal.valueOf(expenses.size()), 2, RoundingMode.HALF_UP);
 
+        // average monthly spend — totalSpent / months between first and last expense
+        BigDecimal averageMonthlySpend = BigDecimal.ZERO;
+        if (!expenses.isEmpty())
+        {
+            Expense first = repo.findFirstByUserOrderByExpenseTimestampAsc(user);
+            Expense last  = repo.findFirstByUserOrderByExpenseTimestampDesc(user);
+            if (first != null && last != null)
+            {
+                long months = java.time.temporal.ChronoUnit.MONTHS.between(
+                        first.getExpenseTimestamp().toLocalDate().withDayOfMonth(1),
+                        last.getExpenseTimestamp().toLocalDate().withDayOfMonth(1)
+                ) + 1;
+                averageMonthlySpend = totalSpent.divide(BigDecimal.valueOf(months), 2, RoundingMode.HALF_UP);
+            }
+        }
+
         FinancialSummaryDTO summaryDTO = new FinancialSummaryDTO();
         summaryDTO.setTransactionCount(transactionCount);
         summaryDTO.setCategoryBreakdown(categoryBreakdown);
@@ -434,6 +450,7 @@ public class ExpenseService
         summaryDTO.setHighestExpense(highestExpense != null ? convertToResponse(highestExpense) : null);
         summaryDTO.setLowestExpense(lowestExpense != null ? convertToResponse(lowestExpense) : null);
         summaryDTO.setAverageExpenseValue(averageExpenseValue);
+        summaryDTO.setAverageMonthlySpend(averageMonthlySpend);
         summaryDTO.setCategoryPercentage(categoryPercentage);
 
         return summaryDTO;

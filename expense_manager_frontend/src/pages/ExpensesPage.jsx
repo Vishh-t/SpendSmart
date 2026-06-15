@@ -114,8 +114,12 @@ function ExpensesPage() {
                 {/* Stats — hidden on mobile to save space */}
                 <div className="hidden sm:flex gap-6 md:gap-8">
                     <div className="text-right">
-                        <p className="text-text-secondary text-xs tracking-widest">MONTHLY BURN</p>
+                        <p className="text-text-secondary text-xs tracking-widest">TOTAL BURN</p>
                         <p className="text-primary text-base md:text-lg font-bold">₹{formatCurrency(financialSummary?.totalSpent)}</p>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-text-secondary text-xs tracking-widest">AVG. MONTHLY BURN</p>
+                        <p className="text-text-primary text-base md:text-lg font-bold">₹{formatCurrency(financialSummary?.averageMonthlySpend)}</p>
                     </div>
                     <div className="text-right">
                         <p className="text-text-secondary text-xs tracking-widest">AVG. TRANSACTION</p>

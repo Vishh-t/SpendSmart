@@ -23,8 +23,9 @@ function buildYearOptions() {
 
 function buildAnnualData(monthlyBreakdown) {
     if (!monthlyBreakdown) return [];
-    return Object.entries(monthlyBreakdown).map(([month, amount]) => ({
+    return Object.entries(monthlyBreakdown).map(([month, amount], index) => ({
         label: month.substring(0, 3),
+        mobileLabel: String(index + 1),
         amount: Number(amount)
     }));
 }
@@ -83,6 +84,13 @@ function SpendingChart({ annualSummary, selectedYear, onYearChange }) {
     const ctaText      = isDark ? "#003824" : "#ffffff";
     const dropdownBg   = isDark ? "rgba(19,27,46,0.97)" : "rgba(255,255,255,0.97)";
 
+    const [isMobile, setIsMobile] = useState(typeof window !== "undefined" && window.innerWidth < 768);
+
+    useEffect(() => {
+        function handleResize() { setIsMobile(window.innerWidth < 768); }
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
+    }, []);
     const annualData = buildAnnualData(annualSummary?.monthlyBreakdown);
     const yearOptions = buildYearOptions();
 
@@ -239,7 +247,7 @@ function SpendingChart({ annualSummary, selectedYear, onYearChange }) {
                     {chartType === "bar" ? (
                         <BarChart data={chartData} barSize={view === "monthly" ? 6 : 16}>
                             {grid}
-                            <XAxis dataKey="label" tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} interval={view === "monthly" ? 4 : 0} />
+                            <XAxis dataKey={view === "annual" && isMobile ? "mobileLabel" : "label"} tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} interval={view === "monthly" ? 4 : 0} />
                             <YAxis tick={{ fill: axisColor, fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `₹${(v/1000).toFixed(0)}k` : `₹${v}`} width={36} />
                             {tooltipEl}
                             <Bar dataKey="amount" radius={[4, 4, 0, 0]}>

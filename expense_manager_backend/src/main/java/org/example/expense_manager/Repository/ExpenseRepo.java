@@ -29,4 +29,8 @@ public interface ExpenseRepo extends JpaRepository<Expense, Integer>
     );
 
     List<Expense> findAllByUserAndKeyword(User user, String oldKeyword);
+
+    Expense findFirstByUserOrderByExpenseTimestampAsc(User user);
+
+    Expense findFirstByUserOrderByExpenseTimestampDesc(User user);
 }

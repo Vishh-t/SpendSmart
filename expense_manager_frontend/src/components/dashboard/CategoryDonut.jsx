@@ -39,14 +39,19 @@ function CategoryDonut({ financialSummary }) {
                                 dataKey="value"
                                 paddingAngle={3}
                             />
-                            <Tooltip
-                                formatter={(value) => [`${Number(value).toFixed(1)}%`, name]}
-                                contentStyle={{
-                                    backgroundColor: isDark ? "#2d3449" : "#ffffff",
-                                    border: isDark ? "none" : "1px solid rgba(0,108,73,0.15)",
-                                    borderRadius: "8px",
-                                    color: isDark ? "#ffffff" : "#0D1F17",
-                                    boxShadow: isDark ? "none" : "0 4px 20px rgba(0,0,0,0.08)"
+            <Tooltip
+                                content={({ active, payload }) => {
+                                    if (!active || !payload?.length) return null;
+                                    const { name, value, fill } = payload[0].payload;
+                                    return (
+                                        <div style={{ backgroundColor: isDark ? "#2d3449" : "#ffffff", border: isDark ? "1px solid rgba(78,222,163,0.2)" : "1px solid rgba(0,108,73,0.15)", borderRadius: "8px", padding: "8px 12px", boxShadow: isDark ? "none" : "0 4px 20px rgba(0,0,0,0.08)" }}>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <div style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: fill }} />
+                                                <p style={{ color: isDark ? "#ffffff" : "#0D1F17", fontSize: 12, fontWeight: 700 }}>{name}</p>
+                                            </div>
+                                            <p style={{ color: isDark ? "#4edea3" : "#059669", fontSize: 12 }}>{Number(value).toFixed(1)}%</p>
+                                        </div>
+                                    );
                                 }}
                             />
                         </PieChart>

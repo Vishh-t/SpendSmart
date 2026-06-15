@@ -65,7 +65,7 @@ public class UserService
         User storedUser = repo.findByUsername(username);
         if (storedUser == null || !encoder.matches(password, storedUser.getPassword()))
         {
-            throw new InvalidCredentialsException("User not found , try Signing Up first");
+            throw new InvalidCredentialsException("Invalid username or password");
 
         }
 

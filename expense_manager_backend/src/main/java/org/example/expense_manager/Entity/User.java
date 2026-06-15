@@ -34,6 +34,7 @@ public class User implements UserDetails
 
     @NotBlank
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    @Size(min  = 8 , max = 25)
     private String password;
 
 

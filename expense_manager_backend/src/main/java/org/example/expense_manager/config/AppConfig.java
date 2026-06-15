@@ -1,5 +1,6 @@
 package org.example.expense_manager.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -13,6 +14,8 @@ import java.util.List;
 @Configuration
 public class AppConfig
 {
+    @Value("${frontend.url:http://localhost:5173}")
+    private String frontendUrl;
     @Bean
     public BCryptPasswordEncoder passwordEncoder()
     {
@@ -23,7 +26,7 @@ public class AppConfig
     public CorsConfigurationSource corsConfigurationSource()
     {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:5173"));
+        config.setAllowedOrigins(List.of(frontendUrl));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

@@ -15,6 +15,7 @@ public class FinancialSummaryDTO
     private ExpenseResponseDTO highestExpense;
     private ExpenseResponseDTO lowestExpense;
     private BigDecimal averageExpenseValue;
+    private BigDecimal averageMonthlySpend;
     private BigDecimal totalSpent;
     private int transactionCount;
     private Map<String, BigDecimal> categoryBreakdown;
