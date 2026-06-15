@@ -33,6 +33,7 @@ public class InsightsService
 
         for (var expense : expenses)
         {
+            if (expense.getCategory() == null) continue;
             String category = expense.getCategory().getCategoryName();
             categoryMonthlySpent
                     .computeIfAbsent(category, k -> new HashMap<>())
@@ -399,11 +400,13 @@ public class InsightsService
 
         for (var expense : targetMonthExpenses)
         {
+            if (expense.getCategory() == null) continue;
             targetMonthSpend.merge(expense.getCategory().getCategoryName(), expense.getAmount(), BigDecimal::add);
         }
 
         for (var expense : prevMonthExpenses)
         {
+            if (expense.getCategory() == null) continue;
             previousMonthSpend.merge(expense.getCategory().getCategoryName(), expense.getAmount(), BigDecimal::add);
         }
 

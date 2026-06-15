@@ -23,16 +23,20 @@ function DashBoard() {
     useEffect(() => {
         async function fetchDashboardData() {
             try {
+                const safeGet = (promise, fallback) => promise.catch(err => {
+                    if (err.response?.status === 404 || err.response?.status === 400) return fallback;
+                    throw err;
+                });
                 const [financial, budget, annual, expenses] = await Promise.all([
-                    getFinancialSummary(),
-                    getBudgetStatus(),
-                    getAnnualSummary(selectedYear),
-                    getSortedExpenses("expenseTimestamp", "desc")
+                    safeGet(getFinancialSummary(), null),
+                    safeGet(getBudgetStatus(), null),
+                    safeGet(getAnnualSummary(selectedYear), null),
+                    safeGet(getSortedExpenses("expenseTimestamp", "desc"), [])
                 ]);
                 setFinancialSummary(financial);
                 setBudgetStatus(budget);
                 setAnnualSummary(annual);
-                setRecentExpenses(expenses.slice(0, 5));
+                setRecentExpenses((expenses ?? []).slice(0, 5));
             } catch (err) {
                 setError("Failed to load dashboard data.");
             } finally {

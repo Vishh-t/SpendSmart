@@ -99,46 +99,45 @@ public class CategoryService
 
     public List<CategoryBudgetStatusDTO> categoryBudgetStatus(User user)
     {
-
-        Map<String, BigDecimal> categoryWiseSpent = new HashMap<>();
-
         LocalDateTime start = YearMonth.now().atDay(1).atStartOfDay();
         LocalDateTime end = LocalDateTime.now();
         List<Expense> expenses = expenseRepo.findAllByUserAndExpenseTimestampBetween(user, start, end);
 
+        Map<String, BigDecimal> categoryWiseSpent = new HashMap<>();
         for (var expense : expenses)
         {
-            if (expense.getCategory().getMonthlyBudget() != null)
-            {
-                categoryWiseSpent.merge(expense.getCategory().getCategoryName(), expense.getAmount(), BigDecimal::add);
-            }
-
+            if (expense.getCategory() == null || expense.getCategory().getMonthlyBudget() == null) continue;
+            categoryWiseSpent.merge(expense.getCategory().getCategoryName(), expense.getAmount(), BigDecimal::add);
         }
 
+        // Start from ALL categories that have a budget set — not just ones with spending
+        List<Category> allCategories = repo.findAllByUser(user);
         List<CategoryBudgetStatusDTO> results = new ArrayList<>();
 
-        for (Map.Entry<String, BigDecimal> entry : categoryWiseSpent.entrySet())
+        for (Category category : allCategories)
         {
-            CategoryBudgetStatusDTO dto = new CategoryBudgetStatusDTO();
-            Category category = repo.findByCategoryNameAndUser(entry.getKey(), user);
+            if (category.getMonthlyBudget() == null) continue;
+
             BigDecimal monthlyBudget = category.getMonthlyBudget();
-            BigDecimal remaining = Objects.requireNonNull(monthlyBudget).subtract(entry.getValue());
-            BigDecimal percentageSpent = (monthlyBudget.subtract(remaining)).divide
-                    (monthlyBudget, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
+            BigDecimal spent = categoryWiseSpent.getOrDefault(category.getCategoryName(), BigDecimal.ZERO);
+            BigDecimal remaining = monthlyBudget.subtract(spent);
+            BigDecimal percentageSpent = spent.divide(monthlyBudget, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
+
             String status;
-            if (entry.getValue().compareTo(category.getMonthlyBudget()) >= 0)
+            if (spent.compareTo(monthlyBudget) >= 0)
                 status = "EXCEEDED";
             else if (percentageSpent.compareTo(new BigDecimal("80")) >= 0)
                 status = "WARNING";
             else
                 status = "ON_TRACK";
 
-            dto.setCategoryBudget(monthlyBudget);
-            dto.setStatus(status);
+            CategoryBudgetStatusDTO dto = new CategoryBudgetStatusDTO();
             dto.setCategoryName(category.getCategoryName());
+            dto.setCategoryBudget(monthlyBudget);
+            dto.setSpentThisMonth(spent);
             dto.setRemaining(remaining);
             dto.setPercentage(percentageSpent);
-            dto.setSpentThisMonth(entry.getValue());
+            dto.setStatus(status);
             results.add(dto);
         }
         return results;

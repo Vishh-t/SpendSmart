@@ -3,6 +3,7 @@ package org.example.expense_manager.Controller;
 import lombok.RequiredArgsConstructor;
 import org.example.expense_manager.DTO.ServiceDTOs.ParsedTransactionDTO;
 import org.example.expense_manager.Entity.User;
+import org.example.expense_manager.Exceptions.AppException;
 import org.example.expense_manager.Service.ImportService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,6 +28,8 @@ public class ImportController
     @PostMapping("/parse")
     public ResponseEntity<List<ParsedTransactionDTO>> parseTransactions(@RequestParam MultipartFile file, @RequestParam boolean includeCredits)
     {
+        if (!"application/pdf".equals(file.getContentType()))
+            throw new AppException("Only PDF files are supported");
         User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
         return new ResponseEntity<>(service.parseStatement(loggedInUser, file, includeCredits), HttpStatus.OK);
     }

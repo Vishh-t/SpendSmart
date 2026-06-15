@@ -20,6 +20,7 @@ function CategoryCard({ category, totalSpent, budgetStatus, onDelete, onBudgetSe
     const [editingBudget, setEditingBudget] = useState(false);
     const [budgetInput,   setBudgetInput]   = useState("");
     const [budgetLoading, setBudgetLoading] = useState(false);
+    const [showMonthly,   setShowMonthly]   = useState(false);
 
     async function handleBudgetSave() {
         const val = parseFloat(budgetInput);
@@ -50,11 +51,23 @@ function CategoryCard({ category, totalSpent, budgetStatus, onDelete, onBudgetSe
                 <h3 className="text-text-primary font-semibold text-base md:text-lg leading-tight">{category.categoryName}</h3>
                 <p className="text-text-secondary text-xs tracking-widest mt-0.5">EXPENSE SECTOR</p>
             </div>
-            <div className="flex items-baseline gap-1">
-                <p className="font-bold text-xl md:text-2xl" style={{ color, fontFamily: "'Berkeley Mono','Courier New',monospace" }}>
-                    ₹{formatCurrency(totalSpent)}
-                </p>
-                <span className="text-sm font-normal" style={{ color: isDark ? "#8892a4" : "#4A6358" }}>total</span>
+            <div className="flex items-end justify-between gap-2">
+                <div className="flex items-baseline gap-1">
+                    <p className="font-bold text-xl md:text-2xl" style={{ color, fontFamily: "'Berkeley Mono','Courier New',monospace" }}>
+                        ₹{formatCurrency(showMonthly ? (budgetStatus?.spentThisMonth ?? 0) : totalSpent)}
+                    </p>
+                    <span className="text-sm font-normal" style={{ color: isDark ? "#8892a4" : "#4A6358" }}>
+                        {showMonthly ? "this month" : "all time"}
+                    </span>
+                </div>
+                {budgetStatus && (
+                    <button
+                        onClick={() => setShowMonthly(v => !v)}
+                        className="flex items-center rounded-lg px-2 py-0.5 text-xs font-medium transition-all shrink-0 mb-0.5"
+                        style={{ backgroundColor: `${color}18`, color, border: `1px solid ${color}33` }}>
+                        {showMonthly ? "All time" : "Monthly"}
+                    </button>
+                )}
             </div>
             {budgetStatus ? (
                 <div className="flex flex-col gap-1.5">
@@ -65,14 +78,18 @@ function CategoryCard({ category, totalSpent, budgetStatus, onDelete, onBudgetSe
                     <div className="w-full rounded-full h-1.5" style={{ backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)" }}>
                         <div className="h-1.5 rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: barColor }} />
                     </div>
-                    <button onClick={() => { setEditingBudget(true); setBudgetInput(budgetStatus.monthlyBudget); }}
-                        className="text-xs self-start opacity-0 group-hover:opacity-100 transition-all"
-                        style={{ color: isDark ? "#8892a4" : "#4A6358" }}>edit budget</button>
+                    <button onClick={() => { setEditingBudget(true); setBudgetInput(budgetStatus.categoryBudget); }}
+                        className="flex items-center gap-1.5 text-xs self-start opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all"
+                        style={{ color: isDark ? "#8892a4" : "#4A6358" }}
+                        onMouseEnter={e => e.currentTarget.style.color = color}
+                        onMouseLeave={e => e.currentTarget.style.color = isDark ? "#8892a4" : "#4A6358"}>
+                        <Target size={11} /> Edit budget
+                    </button>
                 </div>
             ) : (
                 !editingBudget && (
                     <button onClick={() => setEditingBudget(true)}
-                        className="flex items-center gap-1.5 text-xs opacity-0 group-hover:opacity-100 transition-all self-start"
+                        className="flex items-center gap-1.5 text-xs opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all self-start"
                         style={{ color: isDark ? "#8892a4" : "#4A6358" }}
                         onMouseEnter={e => e.currentTarget.style.color = color}
                         onMouseLeave={e => e.currentTarget.style.color = isDark ? "#8892a4" : "#4A6358"}>
@@ -94,7 +111,7 @@ function CategoryCard({ category, totalSpent, budgetStatus, onDelete, onBudgetSe
                 </div>
             )}
             <button onClick={() => onDelete(category.categoryId, category.categoryName)}
-                className="flex items-center gap-1.5 text-xs transition-all opacity-0 group-hover:opacity-100 self-start"
+                className="flex items-center gap-1.5 text-xs transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 self-start"
                 style={{ color: isDark ? "#8892a4" : "#4A6358" }}
                 onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
                 onMouseLeave={e => e.currentTarget.style.color = isDark ? "#8892a4" : "#4A6358"}>

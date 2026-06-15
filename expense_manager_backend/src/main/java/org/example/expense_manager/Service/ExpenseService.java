@@ -340,8 +340,8 @@ public class ExpenseService
         summaryDTO.setTotalSpent(totalSpent);
         summaryDTO.setTransactionCount(expenses.size());
         summaryDTO.setMonthlyBreakdown(monthlyBreakdown);
-        summaryDTO.setHighestExpense(convertToResponse(Objects.requireNonNull(highestExpense)));
-        summaryDTO.setLowestExpense(convertToResponse(Objects.requireNonNull(lowestExpense)));
+        summaryDTO.setHighestExpense(highestExpense != null ? convertToResponse(highestExpense) : null);
+        summaryDTO.setLowestExpense(lowestExpense != null ? convertToResponse(lowestExpense) : null);
         summaryDTO.setAverageExpenseValue(averageExpenseValue);
         summaryDTO.setMonthlyPercentage(monthlyPercentage);
 
@@ -431,8 +431,8 @@ public class ExpenseService
         summaryDTO.setTransactionCount(transactionCount);
         summaryDTO.setCategoryBreakdown(categoryBreakdown);
         summaryDTO.setTotalSpent(totalSpent);
-        summaryDTO.setHighestExpense(convertToResponse(Objects.requireNonNull(highestExpense)));
-        summaryDTO.setLowestExpense(convertToResponse(lowestExpense));
+        summaryDTO.setHighestExpense(highestExpense != null ? convertToResponse(highestExpense) : null);
+        summaryDTO.setLowestExpense(lowestExpense != null ? convertToResponse(lowestExpense) : null);
         summaryDTO.setAverageExpenseValue(averageExpenseValue);
         summaryDTO.setCategoryPercentage(categoryPercentage);
 

@@ -272,11 +272,9 @@ public class ImportService
 
     private String stripSensitiveData(String text)
     {
-        String stripped = text
+        return text
                 .replaceAll("\\b\\d{10,16}\\b", "[REMOVED]")
                 .replaceAll("[A-Z]{4}0[A-Z0-9]{6}", "[REMOVED]");
-        System.out.println("Stripped text: " + stripped);
-        return stripped;
     }
 
     private String normalizeKeyword(String rawVendor)
@@ -290,9 +288,7 @@ public class ImportService
     private boolean isDuplicate(User user, BigDecimal amount, String keyword, LocalDateTime dateTime)
     {
         if (keyword == null) return false;
-        boolean result = expenseRepo.existsByUserAndAmountAndKeywordAndExpenseTimestamp(user, amount, keyword, dateTime);
-        System.out.println("isDuplicate result: " + result + " for amount=" + amount + " keyword=" + keyword + " dateTime=" + dateTime);
-        return result;
+        return expenseRepo.existsByUserAndAmountAndKeywordAndExpenseTimestamp(user, amount, keyword, dateTime);
     }
 
     /**
@@ -309,9 +305,7 @@ public class ImportService
         {
             try
             {
-                String response = template.postForObject(url + "?key=" + api_key, entity, String.class);
-                System.out.printf("[Gemini] %s succeeded on attempt %d%n", modelLabel, attempt);
-                return response;
+                return template.postForObject(url + "?key=" + api_key, entity, String.class);
             }
             catch (HttpServerErrorException e)
             {
@@ -320,15 +314,11 @@ public class ImportService
 
                 if (isOverload && attempt < MAX_RETRIES)
                 {
-                    System.out.printf("[Gemini] %s got %d on attempt %d/%d — retrying in %.0fs%n",
-                            modelLabel, code, attempt, MAX_RETRIES, delayMs / 1000.0);
                     try { Thread.sleep(delayMs); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
                     delayMs *= 2;
                 }
                 else if (isOverload)
                 {
-                    // exhausted retries for this model — signal caller to try fallback
-                    System.out.printf("[Gemini] %s exhausted all %d retries.%n", modelLabel, MAX_RETRIES);
                     throw e;
                 }
                 else
@@ -356,8 +346,7 @@ public class ImportService
             int code = e.getStatusCode().value();
             if (code == 503 || code == 529)
             {
-                System.out.println("[Gemini] Primary model overloaded — falling back to gemini-2.5-flash-lite");
-                return tryUrl(api_fallback_url, entity, "gemini-2.5-flash-lite (fallback)");
+                    return tryUrl(api_fallback_url, entity, "gemini-2.5-flash-lite (fallback)");
             }
             throw new AppException("Gemini API error: " + e.getMessage());
         }
@@ -407,7 +396,6 @@ public class ImportService
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
             String responseBody = callGeminiWithFallback(entity);
-            System.out.println("Gemini raw response: " + responseBody);
 
             try
             {
