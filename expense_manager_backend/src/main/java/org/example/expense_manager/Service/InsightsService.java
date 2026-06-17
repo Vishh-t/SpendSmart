@@ -6,6 +6,7 @@ import org.example.expense_manager.Entity.Expense;
 import org.example.expense_manager.Entity.User;
 import org.example.expense_manager.Repository.ExpenseRepo;
 import org.springframework.stereotype.Service;
+
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
@@ -81,6 +82,8 @@ public class InsightsService
             }
             variance = variance.divide(BigDecimal.valueOf(historical.size()), 4, RoundingMode.HALF_UP);
             BigDecimal stdDev = variance.sqrt(new MathContext(10, RoundingMode.HALF_UP));
+
+            if (stdDev.compareTo(BigDecimal.ZERO) == 0) continue;
 
             BigDecimal threshold = mean.add(stdDev.multiply(new BigDecimal("2")));
             if (currentSpend.compareTo(threshold) <= 0) continue;
@@ -466,7 +469,17 @@ public class InsightsService
         return dto;
     }
 
+    public InsightsSummaryDTO getInsightsSummary(User user)
+    {
+        BurnRateDTO burnRate = dailyBurnRate(user);
+        List<AnomalyDTO> anomalies = anomalyDetector(user, null, null);
+        List<MerchantDTO> merchants = merchantLeaderboard(user);
+        List<RecurringExpenseDTO> subscriptions = subscriptionTracker(user);
+        List<WeeklyDNADTO> dna = weeklyDNA(user, null);
+        List<MonthlyDeltaDTO> delta = monthlyDelta(user, null, null, null, null);
 
+        return new InsightsSummaryDTO(burnRate, anomalies, merchants, subscriptions, dna, delta);
+    }
 
 
 }

@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Search, ArrowUpDown } from "lucide-react";
 import {
-    getSortedExpenses,
-    getExpensesByCategory,
+    getFilteredPaginatedExpenses,
     deleteExpense,
     getFinancialSummary,
     getPaginatedExpenses
@@ -85,43 +84,18 @@ function ExpensesPage() {
                     setFinancialSummary(summary);
                 }
 
-                if (!isFiltering) {
-                    // SERVER-SIDE PAGINATION (Default View)
-                    const data = await getPaginatedExpenses(currentPage - 1, ITEMS_PER_PAGE, sortBy, order);
-                    setExpenses(data.content || []);
-                    setTotalPages(data.totalPages || 1);
-                    setTotalElements(data.totalElements || 0);
-                } else {
-                    // CLIENT-SIDE FALLBACK (Active when searching or using category filters)
-                    let data = selectedCategory !== "all"
-                        ? await getExpensesByCategory(selectedCategory)
-                        : await getSortedExpenses(sortBy, order);
+                // Always server-side paginated — filtered or not, only the matching page is fetched
+                const data = isFiltering
+                    ? await getFilteredPaginatedExpenses(
+                        currentPage - 1, ITEMS_PER_PAGE, sortBy, order,
+                        selectedCategory !== "all" ? selectedCategory : null,
+                        searchQuery.trim() !== "" ? searchQuery.trim() : null
+                      )
+                    : await getPaginatedExpenses(currentPage - 1, ITEMS_PER_PAGE, sortBy, order);
 
-                    // Apply text search instantly
-                    if (searchQuery.trim() !== "") {
-                        data = data.filter(e =>
-                            e.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            e.category?.categoryName?.toLowerCase().includes(searchQuery.toLowerCase())
-                        );
-                    }
-
-                    // Apply manual sorting if we fetched by category
-                    if (selectedCategory !== "all") {
-                        data.sort((a, b) => {
-                            let valA = sortBy === "amount" ? parseFloat(a.amount) : new Date(a.expenseTimestamp).getTime();
-                            let valB = sortBy === "amount" ? parseFloat(b.amount) : new Date(b.expenseTimestamp).getTime();
-                            return order === "desc" ? (valB > valA ? 1 : -1) : (valA > valB ? 1 : -1);
-                        });
-                    }
-
-                    // Calculate totals and slice for UI
-                    setFilteredTotal(data.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0));
-                    setTotalElements(data.length);
-                    setTotalPages(Math.ceil(data.length / ITEMS_PER_PAGE) || 1);
-
-                    const paginatedSlice = data.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
-                    setExpenses(paginatedSlice);
-                }
+                setExpenses(data.content || []);
+                setTotalPages(data.totalPages || 1);
+                setTotalElements(data.totalElements || 0);
             } catch (err) {
                 setError("Failed to load expenses.");
             } finally {
@@ -291,14 +265,10 @@ function ExpensesPage() {
                     {isFiltering && expenses.length > 0 && (
                         <tfoot>
                         <tr className="border-t-2" style={{ borderColor: "rgba(78,222,163,0.20)" }}>
-                            <td colSpan={3} className="px-5 py-3 text-xs" style={{ color: "var(--color-text-secondary)" }}>
-                                Total across {totalElements} result{totalElements !== 1 ? "s" : ""}
+                            <td colSpan={5} className="px-5 py-3 text-xs" style={{ color: "var(--color-text-secondary)" }}>
+                                {totalElements} result{totalElements !== 1 ? "s" : ""}
                                 {searchQuery.trim() !== "" && <span className="ml-1">for <span style={{ color: "var(--color-text-primary)" }}>"{searchQuery}"</span></span>}
                             </td>
-                            <td className="px-5 py-3 text-right text-sm font-bold" style={{ color: "var(--color-primary)", fontFamily: "'Berkeley Mono','Courier New',monospace" }}>
-                                -₹{filteredTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </td>
-                            <td />
                         </tr>
                         </tfoot>
                     )}

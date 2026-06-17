@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useTheme } from "../context/ThemeContext.jsx";
 import { getUserInfo, updateBudget, deleteAccount } from "../services/userService.js";
-import { getAllExpenses, getExpensesByDateRange } from "../services/expenseService.js";
+import { getExpensesByDateRange } from "../services/expenseService.js";
 import { formatCurrency } from "../utils/formatCurrency.js";
 import { ErrorState, ProfileSkeleton } from "../components/ui/PageState.jsx";
 import { LogOut, Trash2, Save, User, Mail, AtSign, Wallet, AlertTriangle, X, ChevronDown, ShieldAlert, Edit3 } from "lucide-react";
@@ -459,10 +459,17 @@ function ProfilePage() {
     useEffect(() => {
         async function fetchData() {
             try {
-                const [user, allExpenses] = await Promise.all([getUserInfo(), getAllExpenses()]);
+                const currentYear = new Date().getFullYear();
+                const [user, yearExpenses] = await Promise.all([
+                    getUserInfo(),
+                    getExpensesByDateRange(`${currentYear}-01-01`, `${currentYear}-12-31`).catch(err => {
+                        if (err.response?.status === 404) return [];
+                        throw err;
+                    })
+                ]);
                 setUserInfo(user);
                 setNewBudget(user.monthlyBudget || "");
-                setExpenses(allExpenses);
+                setExpenses(yearExpenses);
             } catch {
                 setError("Failed to load profile.");
             } finally {

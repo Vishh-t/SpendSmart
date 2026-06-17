@@ -1,9 +1,9 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useData } from "../context/DataContext.jsx";
 import {
     AlertTriangle, TrendingUp, Minus, Repeat2,
     Flame, Trophy, Zap, Info,
-    ArrowUpRight, ArrowDownRight, Sparkles, Activity
+    ArrowUpRight, ArrowDownRight, Sparkles, Activity, ChevronDown
 } from "lucide-react";
 import {
     getAnomalies, getMerchantLeaderboard, getSubscriptionTracker,
@@ -38,6 +38,62 @@ function trendMeta(trend) {
     if (trend === "DOWN") return { icon: <ArrowDownRight size={12}/>, color: "#10b981", bg: "rgba(16,185,129,0.10)"  };
     if (trend === "NEW")  return { icon: <Sparkles size={12}/>,       color: "#a78bfa", bg: "rgba(167,139,250,0.10)" };
     return                       { icon: <Minus size={12}/>,          color: "#6b7280", bg: "rgba(107,114,128,0.08)" };
+}
+
+/* ── custom dropdown — matches ExpensesPage pattern exactly ── */
+function DropdownEl({ value, onChange, options, isDark }) {
+    const [open, setOpen] = useState(false);
+    const ref = useRef(null);
+
+    useEffect(() => {
+        function outside(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
+        document.addEventListener("mousedown", outside);
+        return () => document.removeEventListener("mousedown", outside);
+    }, []);
+
+    const selected = options.find(o => String(o.value) === String(value));
+
+    return (
+        <div className="relative" ref={ref}>
+            <button
+                onClick={() => setOpen(o => !o)}
+                className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all"
+                style={{
+                    backgroundColor: isDark ? "rgba(49,57,77,0.9)" : "rgba(16,185,129,0.07)",
+                    color:           isDark ? "#e2e8f0"            : "#0D4A2A",
+                    border:          isDark ? "1px solid rgba(78,222,163,0.18)" : "1px solid rgba(16,185,129,0.25)",
+                    minWidth:        "52px",
+                }}
+            >
+                <span>{selected?.label ?? value}</span>
+                <ChevronDown size={11} className={`transition-transform shrink-0 ${open ? "rotate-180" : ""}`}
+                    style={{ color: isDark ? "#8892a4" : "#4A6358" }} />
+            </button>
+            {open && (
+                <div
+                    className="absolute z-50 mt-1 right-0 rounded-lg shadow-lg overflow-y-auto"
+                    style={{
+                        backgroundColor: isDark ? "rgba(19,27,46,0.97)" : "rgba(255,255,255,0.97)",
+                        backdropFilter:  "blur(12px)",
+                        border:          isDark ? "1px solid rgba(78,222,163,0.15)" : "1px solid rgba(16,185,129,0.18)",
+                        minWidth:        "90px",
+                        maxHeight:       "200px",
+                    }}
+                >
+                    {options.map(o => (
+                        <button
+                            key={o.value}
+                            onClick={() => { onChange(o.value); setOpen(false); }}
+                            className="w-full text-left px-4 py-2 text-xs transition-all hover:bg-surface-bright"
+                            style={{ color: String(o.value) === String(value) ? (isDark ? "#4edea3" : "#059669") : (isDark ? "#8892a4" : "#4A6358") }}
+                        >
+                            {o.label}
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
 }
 
 function Card({ children, isDark, className = "", style = {} }) {
@@ -77,15 +133,6 @@ function EmptyState({ icon, text, isDark }) {
     );
 }
 
-function SelectEl({ value, onChange, options, isDark }) {
-    return (
-        <select value={value} onChange={onChange}
-            style={{ background: isDark ? "rgba(49,57,77,0.9)" : "rgba(16,185,129,0.07)", color: isDark ? "#e2e8f0" : "#0D4A2A", border: isDark ? "1px solid rgba(78,222,163,0.18)" : "1px solid rgba(16,185,129,0.25)", borderRadius: "7px", padding: "3px 7px", fontSize: "11px", fontWeight: 700, outline: "none", cursor: "pointer" }}>
-            {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
-    );
-}
-
 function InsightsPage() {
     const { isDark } = useTheme();
     const { refreshKey } = useData();
@@ -112,6 +159,18 @@ function InsightsPage() {
     const [merchantExpenses,     setMerchantExpenses]     = useState([]);
     const [merchantModalLoading, setMerchantModalLoading] = useState(false);
 
+    const [anomMonth, setAnomalyMonth] = useState(now().getMonth() + 1);
+    const [anomYear,  setAnomalyYear]  = useState(now().getFullYear());
+    const [dnaMonths, setDnaMonths]    = useState("all");
+    const [d1Month,   setD1Month]      = useState(now().getMonth() === 0 ? 12 : now().getMonth());
+    const [d1Year,    setD1Year]       = useState(now().getMonth() === 0 ? now().getFullYear() - 1 : now().getFullYear());
+    const [d2Month,   setD2Month]      = useState(now().getMonth() + 1);
+    const [d2Year,    setD2Year]       = useState(now().getFullYear());
+
+    const monthOpts = MONTHS.map((m, i) => ({ value: i + 1, label: m }));
+    const yearOpts  = [now().getFullYear(), now().getFullYear() - 1, now().getFullYear() - 2].map(y => ({ value: y, label: String(y) }));
+    const dnaOpts   = [{ value: "all", label: "All time" }, { value: 3, label: "3 months" }, { value: 6, label: "6 months" }, { value: 12, label: "12 months" }];
+
     async function openMerchantModal(keyword) {
         setMerchantModal(keyword);
         setMerchantModalLoading(true);
@@ -128,32 +187,22 @@ function InsightsPage() {
         finally { setRenamingLoading(false); setEditingKeyword(null); }
     }
 
-    const [anomMonth, setAnomalyMonth] = useState(now().getMonth() + 1);
-    const [anomYear,  setAnomalyYear]  = useState(now().getFullYear());
-    const [dnaMonths, setDnaMonths]    = useState(null);
-    const [d1Month,   setD1Month]      = useState(now().getMonth() === 0 ? 12 : now().getMonth());
-    const [d1Year,    setD1Year]       = useState(now().getMonth() === 0 ? now().getFullYear() - 1 : now().getFullYear());
-    const [d2Month,   setD2Month]      = useState(now().getMonth() + 1);
-    const [d2Year,    setD2Year]       = useState(now().getFullYear());
-
     const fetchBurn  = useCallback(async () => { setLoadingBurn(true);  try { setBurnRate(await getDailyBurnRate()); } catch { setBurnRate(null); } finally { setLoadingBurn(false); } }, []);
     const fetchMerch = useCallback(async () => { setLoadingMerch(true); try { setMerchants(await getMerchantLeaderboard()); } catch { setMerchants([]); } finally { setLoadingMerch(false); } }, []);
     const fetchSubs  = useCallback(async () => { setLoadingSubs(true);  try { setSubscriptions(await getSubscriptionTracker()); } catch { setSubscriptions([]); } finally { setLoadingSubs(false); } }, []);
     const fetchAnomalies = useCallback(async () => { setLoadingAnom(true); try { setAnomalies(await getAnomalies(anomMonth, anomYear)); } catch { setAnomalies([]); } finally { setLoadingAnom(false); } }, [anomMonth, anomYear]);
-    const fetchDNA = useCallback(async () => { setLoadingDNA(true); try { setWeeklyDNA(await getWeeklyDNA(dnaMonths)); } catch { setWeeklyDNA([]); } finally { setLoadingDNA(false); } }, [dnaMonths]);
+    const fetchDNA = useCallback(async () => { setLoadingDNA(true); try { setWeeklyDNA(await getWeeklyDNA(dnaMonths === "all" ? null : dnaMonths)); } catch { setWeeklyDNA([]); } finally { setLoadingDNA(false); } }, [dnaMonths]);
     const fetchDelta = useCallback(async () => { setLoadingDelta(true); try { setMonthlyDelta(await getMonthlyDelta(d2Month, d2Year, d1Month, d1Year)); } catch { setMonthlyDelta([]); } finally { setLoadingDelta(false); } }, [d1Month, d1Year, d2Month, d2Year]);
 
-    useEffect(() => { void fetchBurn(); },      [fetchBurn,  refreshKey]);
-    useEffect(() => { void fetchMerch(); },     [fetchMerch, refreshKey]);
-    useEffect(() => { void fetchSubs(); },      [fetchSubs,  refreshKey]);
+    useEffect(() => { void fetchBurn(); void fetchMerch(); void fetchSubs(); void fetchAnomalies(); void fetchDNA(); void fetchDelta(); }, [refreshKey]);
     useEffect(() => { void fetchAnomalies(); }, [fetchAnomalies]);
-    useEffect(() => { void fetchDNA(); },       [fetchDNA]);
-    useEffect(() => { void fetchDelta(); },     [fetchDelta]);
+    useEffect(() => { void fetchDNA();       }, [fetchDNA]);
+    useEffect(() => { void fetchDelta();     }, [fetchDelta]);
 
     const realAnomalies   = anomalies.filter(a => !a.insufficientData);
     const insuffAnomalies = anomalies.filter(a => a.insufficientData);
 
-    const budget = burnRate ? (Number(burnRate.projectedMonthEndSpend) || 0) + Math.max(Number(burnRate.projectedSurplus) || 0, 0) : 0;
+    const budget    = burnRate ? (Number(burnRate.projectedMonthEndSpend) || 0) + Math.max(Number(burnRate.projectedSurplus) || 0, 0) : 0;
     const budgetPct = budget > 0 ? Math.min((Number(burnRate.projectedMonthEndSpend) / budget) * 100, 100) : 0;
 
     const dnaChartData = [...weeklyDNA]
@@ -166,9 +215,7 @@ function InsightsPage() {
         : burnRate.status === "WARNING"  ? "#f59e0b"
         : isDark ? "#4edea3" : "#059669";
 
-    const monthOpts = MONTHS.map((m, i) => ({ value: i + 1, label: m }));
-    const yearOpts  = [now().getFullYear(), now().getFullYear() - 1, now().getFullYear() - 2].map(y => ({ value: y, label: y }));
-    const dnaOpts   = [{ value: "all", label: "All time" }, { value: 3, label: "3 months" }, { value: 6, label: "6 months" }, { value: 12, label: "12 months" }];
+    const merchantTotal = merchantExpenses.reduce((s, e) => s + Number(e.amount), 0);
 
     function DnaTooltip({ active, payload, label }) {
         if (!active || !payload?.length) return null;
@@ -179,8 +226,6 @@ function InsightsPage() {
             </div>
         );
     }
-
-    const merchantTotal = merchantExpenses.reduce((s, e) => s + Number(e.amount), 0);
 
     return (
         <div className="flex flex-col gap-4 md:gap-5 pb-8">
@@ -193,7 +238,7 @@ function InsightsPage() {
                 </p>
             </div>
 
-            {/* Row 1 */}
+            {/* Row 1 — Burn Rate + Anomaly */}
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <Card isDark={isDark} className="md:col-span-2"
                     style={{ background: isDark ? "linear-gradient(145deg,rgba(78,222,163,0.09) 0%,#1a2438 60%)" : "linear-gradient(145deg,rgba(16,185,129,0.08) 0%,#ffffff 60%)", border: isDark ? "1px solid rgba(78,222,163,0.18)" : "1px solid rgba(16,185,129,0.20)" }}>
@@ -203,207 +248,231 @@ function InsightsPage() {
                                 {burnRate.status}
                             </span>
                         )} />
-                    {loadingBurn ? <div className="flex flex-col gap-2"><Pulse isDark={isDark} h="h-9" w="w-36"/><Pulse isDark={isDark} h="h-2"/><Pulse isDark={isDark} h="h-2" w="w-3/4"/></div>
-                    : !burnRate ? <EmptyState icon={<Flame size={24}/>} text="No spending data this month." isDark={isDark}/>
-                    : (
-                        <>
-                            <div>
-                                <p className="font-black text-text-primary tracking-tight" style={{ fontSize: "2.2rem", lineHeight: 1.1 }}>
-                                    ₹{formatCurrency(burnRate.dailyBurnRate)}<span className="text-text-secondary font-normal text-sm ml-1">/day</span>
-                                </p>
-                                <p className="text-xs mt-1" style={{ color: isDark ? "rgba(136,146,164,0.65)" : "rgba(0,108,73,0.50)" }}>Exponential weighted average</p>
-                            </div>
-                            <div>
-                                <div className="flex justify-between text-xs mb-1.5">
-                                    <span style={{ color: isDark ? "#8892a4" : "rgba(0,108,73,0.6)" }}>Projected month-end</span>
-                                    <span className="font-bold text-text-primary">₹{formatCurrency(burnRate.projectedMonthEndSpend)}</span>
+                    {loadingBurn
+                        ? <div className="flex flex-col gap-2"><Pulse isDark={isDark} h="h-9" w="w-36"/><Pulse isDark={isDark} h="h-2"/><Pulse isDark={isDark} h="h-2" w="w-3/4"/></div>
+                        : !burnRate
+                        ? <EmptyState icon={<Flame size={24}/>} text="No spending data this month." isDark={isDark}/>
+                        : (
+                            <>
+                                <div>
+                                    <p className="font-black text-text-primary tracking-tight" style={{ fontSize: "2.2rem", lineHeight: 1.1 }}>
+                                        ₹{formatCurrency(burnRate.dailyBurnRate)}<span className="text-text-secondary font-normal text-sm ml-1">/day</span>
+                                    </p>
+                                    <p className="text-xs mt-1" style={{ color: isDark ? "rgba(136,146,164,0.65)" : "rgba(0,108,73,0.50)" }}>Exponential weighted average</p>
                                 </div>
-                                <div className="w-full h-2 rounded-full" style={{ background: isDark ? "rgba(49,57,77,0.9)" : "rgba(16,185,129,0.10)" }}>
-                                    <div className="h-2 rounded-full transition-all duration-700" style={{ width: `${budgetPct}%`, background: `linear-gradient(90deg,${burnColor},${burnColor}cc)` }}/>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                                {[
-                                    { label: "Budget Remaining", value: `₹${formatCurrency(Math.abs(Number(burnRate.budgetRemaining)))}${Number(burnRate.budgetRemaining) < 0 ? " over" : ""}`, color: Number(burnRate.budgetRemaining) < 0 ? "#ef4444" : burnColor },
-                                    { label: "Days Until Empty", value: burnRate.daysUntilBudgetExhausted === 0 ? "—" : `${burnRate.daysUntilBudgetExhausted}d`, color: burnRate.daysUntilBudgetExhausted <= 5 && burnRate.daysUntilBudgetExhausted > 0 ? "#ef4444" : burnRate.daysUntilBudgetExhausted <= 10 ? "#f59e0b" : burnColor },
-                                ].map(({ label, value, color }) => (
-                                    <div key={label} className="rounded-xl p-3" style={{ background: isDark ? "rgba(49,57,77,0.45)" : "rgba(16,185,129,0.06)", border: isDark ? "1px solid rgba(78,222,163,0.06)" : "1px solid rgba(16,185,129,0.10)" }}>
-                                        <p className="text-xs" style={{ color: isDark ? "#8892a4" : "rgba(0,108,73,0.6)" }}>{label}</p>
-                                        <p className="font-black text-base mt-0.5" style={{ color }}>{value}</p>
+                                <div>
+                                    <div className="flex justify-between text-xs mb-1.5">
+                                        <span style={{ color: isDark ? "#8892a4" : "rgba(0,108,73,0.6)" }}>Projected month-end</span>
+                                        <span className="font-bold text-text-primary">₹{formatCurrency(burnRate.projectedMonthEndSpend)}</span>
                                     </div>
-                                ))}
-                            </div>
-                        </>
-                    )}
+                                    <div className="w-full h-2 rounded-full" style={{ background: isDark ? "rgba(49,57,77,0.9)" : "rgba(16,185,129,0.10)" }}>
+                                        <div className="h-2 rounded-full transition-all duration-700" style={{ width: `${budgetPct}%`, background: `linear-gradient(90deg,${burnColor},${burnColor}cc)` }}/>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {[
+                                        { label: "Budget Remaining", value: `₹${formatCurrency(Math.abs(Number(burnRate.budgetRemaining)))}${Number(burnRate.budgetRemaining) < 0 ? " over" : ""}`, color: Number(burnRate.budgetRemaining) < 0 ? "#ef4444" : burnColor },
+                                        { label: "Days Until Empty", value: burnRate.daysUntilBudgetExhausted === 0 ? "—" : `${burnRate.daysUntilBudgetExhausted}d`, color: burnRate.daysUntilBudgetExhausted <= 5 && burnRate.daysUntilBudgetExhausted > 0 ? "#ef4444" : burnRate.daysUntilBudgetExhausted <= 10 ? "#f59e0b" : burnColor },
+                                    ].map(({ label, value, color }) => (
+                                        <div key={label} className="rounded-xl p-3" style={{ background: isDark ? "rgba(49,57,77,0.45)" : "rgba(16,185,129,0.06)", border: isDark ? "1px solid rgba(78,222,163,0.06)" : "1px solid rgba(16,185,129,0.10)" }}>
+                                            <p className="text-xs" style={{ color: isDark ? "#8892a4" : "rgba(0,108,73,0.6)" }}>{label}</p>
+                                            <p className="font-black text-base mt-0.5" style={{ color }}>{value}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </>
+                        )
+                    }
                 </Card>
 
                 <Card isDark={isDark} className="md:col-span-3">
                     <CardHeader icon={<AlertTriangle size={15}/>} title="Anomaly Detector" subtitle="Spending outliers via σ analysis" isDark={isDark}
-                        action={<div className="flex items-center gap-1.5"><SelectEl isDark={isDark} value={anomMonth} onChange={e => setAnomalyMonth(Number(e.target.value))} options={monthOpts}/><SelectEl isDark={isDark} value={anomYear} onChange={e => setAnomalyYear(Number(e.target.value))} options={yearOpts}/></div>} />
+                        action={
+                            <div className="flex items-center gap-1.5">
+                                <DropdownEl isDark={isDark} value={anomMonth} onChange={v => setAnomalyMonth(Number(v))} options={monthOpts}/>
+                                <DropdownEl isDark={isDark} value={anomYear}  onChange={v => setAnomalyYear(Number(v))}  options={yearOpts}/>
+                            </div>
+                        }/>
                     <div className="flex flex-col gap-2 overflow-y-auto pr-0.5" style={{ maxHeight: "230px" }}>
-                        {loadingAnom ? [1,2,3].map(i => <Pulse key={i} isDark={isDark} h="h-14"/>)
-                        : realAnomalies.length === 0 && insuffAnomalies.length === 0 ? <EmptyState icon={<Zap size={22}/>} text="No anomalies this period — spending looks normal." isDark={isDark}/>
-                        : (
-                            <>
-                                {realAnomalies.map((a, i) => {
-                                    const sc = severityColor(a.severity);
-                                    return (
-                                        <div key={i} className="flex items-start gap-3 rounded-xl px-3 py-2.5" style={{ background: `rgba(${a.severity === "Unusual" ? "239,68,68" : a.severity === "Very High" ? "249,115,22" : "245,158,11"},0.07)`, borderLeft: `3px solid ${sc}` }}>
-                                            <AlertTriangle size={13} style={{ color: sc, marginTop: 2, flexShrink: 0 }}/>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-1.5 flex-wrap">
-                                                    <span className="text-text-primary text-sm font-bold">{a.categoryName}</span>
-                                                    <span style={{ fontSize: 10, fontWeight: 800, padding: "1px 6px", borderRadius: 5, background: `${sc}18`, color: sc }}>{a.severity}</span>
-                                                    {a.deviationMultiple && <span style={{ fontSize: 10, color: isDark ? "#8892a4" : "#4A6358" }}>{a.deviationMultiple}σ</span>}
+                        {loadingAnom
+                            ? [1,2,3].map(i => <Pulse key={i} isDark={isDark} h="h-14"/>)
+                            : realAnomalies.length === 0 && insuffAnomalies.length === 0
+                            ? <EmptyState icon={<Zap size={22}/>} text="No anomalies this period — spending looks normal." isDark={isDark}/>
+                            : (
+                                <>
+                                    {realAnomalies.map((a, i) => {
+                                        const sc = severityColor(a.severity);
+                                        return (
+                                            <div key={i} className="flex items-start gap-3 rounded-xl px-3 py-2.5"
+                                                style={{ background: `rgba(${a.severity === "Unusual" ? "239,68,68" : a.severity === "Very High" ? "249,115,22" : "245,158,11"},0.07)`, borderLeft: `3px solid ${sc}` }}>
+                                                <AlertTriangle size={13} style={{ color: sc, marginTop: 2, flexShrink: 0 }}/>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                        <span className="text-text-primary text-sm font-bold">{a.categoryName}</span>
+                                                        <span style={{ fontSize: 10, fontWeight: 800, padding: "1px 6px", borderRadius: 5, background: `${sc}18`, color: sc }}>{a.severity}</span>
+                                                        {a.deviationMultiple && <span style={{ fontSize: 10, color: isDark ? "#8892a4" : "#4A6358" }}>{a.deviationMultiple}σ</span>}
+                                                    </div>
+                                                    <p className="text-xs mt-0.5 line-clamp-1" style={{ color: isDark ? "#8892a4" : "rgba(0,108,73,0.65)" }}>{a.message}</p>
                                                 </div>
-                                                <p className="text-xs mt-0.5 line-clamp-1" style={{ color: isDark ? "#8892a4" : "rgba(0,108,73,0.65)" }}>{a.message}</p>
+                                                <div className="text-right shrink-0">
+                                                    <p className="text-text-primary text-sm font-bold">₹{formatCurrency(a.currentMonthSpend)}</p>
+                                                    {a.historicalMean && <p className="text-xs" style={{ color: isDark ? "#8892a4" : "rgba(0,108,73,0.55)" }}>avg ₹{formatCurrency(a.historicalMean)}</p>}
+                                                </div>
                                             </div>
-                                            <div className="text-right shrink-0">
-                                                <p className="text-text-primary text-sm font-bold">₹{formatCurrency(a.currentMonthSpend)}</p>
-                                                {a.historicalMean && <p className="text-xs" style={{ color: isDark ? "#8892a4" : "rgba(0,108,73,0.55)" }}>avg ₹{formatCurrency(a.historicalMean)}</p>}
-                                            </div>
+                                        );
+                                    })}
+                                    {insuffAnomalies.length > 0 && (
+                                        <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs" style={{ background: isDark ? "rgba(49,57,77,0.4)" : "rgba(16,185,129,0.04)", color: isDark ? "#8892a4" : "rgba(0,108,73,0.55)" }}>
+                                            <Info size={12}/>{insuffAnomalies.length} categor{insuffAnomalies.length === 1 ? "y needs" : "ies need"} more history: {insuffAnomalies.map(a => a.categoryName).join(", ")}
                                         </div>
-                                    );
-                                })}
-                                {insuffAnomalies.length > 0 && (
-                                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs" style={{ background: isDark ? "rgba(49,57,77,0.4)" : "rgba(16,185,129,0.04)", color: isDark ? "#8892a4" : "rgba(0,108,73,0.55)" }}>
-                                        <Info size={12}/>{insuffAnomalies.length} categor{insuffAnomalies.length === 1 ? "y needs" : "ies need"} more history: {insuffAnomalies.map(a => a.categoryName).join(", ")}
-                                    </div>
-                                )}
-                            </>
-                        )}
+                                    )}
+                                </>
+                            )
+                        }
                     </div>
                 </Card>
             </div>
 
-            {/* Row 2 */}
+            {/* Row 2 — DNA + Delta */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Card isDark={isDark}>
                     <CardHeader icon={<Activity size={15}/>} title="Spending DNA" subtitle="Average spend by day of week" isDark={isDark}
-                        action={<SelectEl isDark={isDark} value={dnaMonths ?? "all"} onChange={e => setDnaMonths(e.target.value === "all" ? null : Number(e.target.value))} options={dnaOpts}/>} />
-                    {loadingDNA ? <Pulse isDark={isDark} h="h-44"/>
-                    : dnaChartData.length === 0 ? <EmptyState icon={<Activity size={22}/>} text="No data available." isDark={isDark}/>
-                    : (
-                        <>
-                            <ResponsiveContainer width="100%" height={160}>
-                                <BarChart data={dnaChartData} barCategoryGap="30%">
-                                    <XAxis dataKey="day" tick={{ fill: isDark ? "#8892a4" : "#4A6358", fontSize: 10, fontWeight: 600 }} axisLine={false} tickLine={false}/>
-                                    <YAxis hide/>
-                                    <Tooltip content={<DnaTooltip/>}/>
-                                    <Bar dataKey="avg" radius={[6,6,2,2]}>
-                                        {dnaChartData.map((d, i) => (
-                                            <Cell key={i} fill={d.avg === dnaMax ? (isDark ? "#4edea3" : "#10b981") : i >= 5 ? (isDark ? "rgba(78,222,163,0.42)" : "rgba(16,185,129,0.38)") : (isDark ? "rgba(78,222,163,0.22)" : "rgba(16,185,129,0.22)")}/>
-                                        ))}
-                                    </Bar>
-                                </BarChart>
-                            </ResponsiveContainer>
-                            {(() => {
-                                const peak = dnaChartData.reduce((a, b) => a.avg > b.avg ? a : b);
-                                return <p className="text-xs text-center" style={{ color: isDark ? "rgba(136,146,164,0.7)" : "rgba(0,108,73,0.55)" }}>Peak on <span className="font-bold" style={{ color: isDark ? "#4edea3" : "#059669" }}>{peak.day}s</span> — avg ₹{formatCurrency(peak.avg)}</p>;
-                            })()}
-                        </>
-                    )}
+                        action={<DropdownEl isDark={isDark} value={dnaMonths} onChange={v => setDnaMonths(v)} options={dnaOpts}/>}/>
+                    {loadingDNA
+                        ? <Pulse isDark={isDark} h="h-44"/>
+                        : dnaChartData.length === 0
+                        ? <EmptyState icon={<Activity size={22}/>} text="No data available." isDark={isDark}/>
+                        : (
+                            <>
+                                <ResponsiveContainer width="100%" height={160}>
+                                    <BarChart data={dnaChartData} barCategoryGap="30%">
+                                        <XAxis dataKey="day" tick={{ fill: isDark ? "#8892a4" : "#4A6358", fontSize: 10, fontWeight: 600 }} axisLine={false} tickLine={false}/>
+                                        <YAxis hide/>
+                                        <Tooltip content={<DnaTooltip/>}/>
+                                        <Bar dataKey="avg" radius={[6,6,2,2]}>
+                                            {dnaChartData.map((d, i) => (
+                                                <Cell key={i} fill={d.avg === dnaMax ? (isDark ? "#4edea3" : "#10b981") : i >= 5 ? (isDark ? "rgba(78,222,163,0.42)" : "rgba(16,185,129,0.38)") : (isDark ? "rgba(78,222,163,0.22)" : "rgba(16,185,129,0.22)")}/>
+                                            ))}
+                                        </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
+                                {(() => {
+                                    const peak = dnaChartData.reduce((a, b) => a.avg > b.avg ? a : b);
+                                    return <p className="text-xs text-center" style={{ color: isDark ? "rgba(136,146,164,0.7)" : "rgba(0,108,73,0.55)" }}>Peak on <span className="font-bold" style={{ color: isDark ? "#4edea3" : "#059669" }}>{peak.day}s</span> — avg ₹{formatCurrency(peak.avg)}</p>;
+                                })()}
+                            </>
+                        )
+                    }
                 </Card>
 
                 <Card isDark={isDark}>
                     <CardHeader icon={<TrendingUp size={15}/>} title="Period Comparison" subtitle="Category-level delta between two months" isDark={isDark}
                         action={
-                            <div className="flex items-center gap-1 overflow-x-auto pb-0.5" style={{ maxWidth: "100%" }}>
-                                <SelectEl isDark={isDark} value={d1Month} onChange={e => setD1Month(Number(e.target.value))} options={monthOpts}/>
-                                <SelectEl isDark={isDark} value={d1Year}  onChange={e => setD1Year(Number(e.target.value))}  options={yearOpts.slice(0,2)}/>
-                                <span className="text-text-secondary text-xs mx-0.5 shrink-0">vs</span>
-                                <SelectEl isDark={isDark} value={d2Month} onChange={e => setD2Month(Number(e.target.value))} options={monthOpts}/>
-                                <SelectEl isDark={isDark} value={d2Year}  onChange={e => setD2Year(Number(e.target.value))}  options={yearOpts.slice(0,2)}/>
+                            <div className="flex items-center gap-1 flex-wrap justify-end">
+                                <DropdownEl isDark={isDark} value={d1Month} onChange={v => setD1Month(Number(v))} options={monthOpts}/>
+                                <DropdownEl isDark={isDark} value={d1Year}  onChange={v => setD1Year(Number(v))}  options={yearOpts}/>
+                                <span className="text-text-secondary text-xs mx-0.5">vs</span>
+                                <DropdownEl isDark={isDark} value={d2Month} onChange={v => setD2Month(Number(v))} options={monthOpts}/>
+                                <DropdownEl isDark={isDark} value={d2Year}  onChange={v => setD2Year(Number(v))}  options={yearOpts}/>
                             </div>
-                        } />
+                        }/>
                     <div className="flex flex-col gap-1.5 overflow-y-auto pr-0.5" style={{ maxHeight: "220px" }}>
-                        {loadingDelta ? [1,2,3,4].map(i => <Pulse key={i} isDark={isDark} h="h-10"/>)
-                        : monthlyDelta.length === 0 ? <EmptyState icon={<TrendingUp size={22}/>} text="No data for selected period." isDark={isDark}/>
-                        : [...monthlyDelta].sort((a, b) => Math.abs(Number(b.deltaPercentage ?? 0)) - Math.abs(Number(a.deltaPercentage ?? 0))).map((d, i) => {
-                            const { icon, color, bg } = trendMeta(d.trend);
-                            return (
-                                <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-xl" style={{ background: isDark ? "rgba(49,57,77,0.35)" : "rgba(16,185,129,0.04)", border: isDark ? "1px solid rgba(78,222,163,0.05)" : "1px solid rgba(16,185,129,0.08)" }}>
-                                    <span style={{ color, flexShrink: 0 }}>{icon}</span>
-                                    <span className="text-text-primary text-sm font-medium flex-1 truncate">{d.category}</span>
-                                    <span className="text-xs shrink-0" style={{ color: isDark ? "#8892a4" : "rgba(0,108,73,0.55)" }}>₹{formatCurrency(d.lastMonthSpend)} →&nbsp;</span>
-                                    <span className="text-sm font-bold shrink-0 text-text-primary">₹{formatCurrency(d.currentMonthSpend)}</span>
-                                    {d.deltaPercentage != null && (
-                                        <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 7px", borderRadius: 6, background: bg, color, flexShrink: 0 }}>
-                                            {Number(d.deltaPercentage) > 0 ? "+" : ""}{Number(d.deltaPercentage).toFixed(1)}%
-                                        </span>
-                                    )}
-                                </div>
-                            );
-                        })}
+                        {loadingDelta
+                            ? [1,2,3,4].map(i => <Pulse key={i} isDark={isDark} h="h-10"/>)
+                            : monthlyDelta.length === 0
+                            ? <EmptyState icon={<TrendingUp size={22}/>} text="No data for selected period." isDark={isDark}/>
+                            : [...monthlyDelta].sort((a, b) => Math.abs(Number(b.deltaPercentage ?? 0)) - Math.abs(Number(a.deltaPercentage ?? 0))).map((d, i) => {
+                                const { icon, color, bg } = trendMeta(d.trend);
+                                return (
+                                    <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-xl" style={{ background: isDark ? "rgba(49,57,77,0.35)" : "rgba(16,185,129,0.04)", border: isDark ? "1px solid rgba(78,222,163,0.05)" : "1px solid rgba(16,185,129,0.08)" }}>
+                                        <span style={{ color, flexShrink: 0 }}>{icon}</span>
+                                        <span className="text-text-primary text-sm font-medium flex-1 truncate">{d.category}</span>
+                                        <span className="text-xs shrink-0" style={{ color: isDark ? "#8892a4" : "rgba(0,108,73,0.55)" }}>₹{formatCurrency(d.lastMonthSpend)} →&nbsp;</span>
+                                        <span className="text-sm font-bold shrink-0 text-text-primary">₹{formatCurrency(d.currentMonthSpend)}</span>
+                                        {d.deltaPercentage != null && (
+                                            <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 7px", borderRadius: 6, background: bg, color, flexShrink: 0 }}>
+                                                {Number(d.deltaPercentage) > 0 ? "+" : ""}{Number(d.deltaPercentage).toFixed(1)}%
+                                            </span>
+                                        )}
+                                    </div>
+                                );
+                            })
+                        }
                     </div>
                 </Card>
             </div>
 
-            {/* Row 3 */}
+            {/* Row 3 — Merchants + Subscriptions */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Card isDark={isDark}>
                     <CardHeader icon={<Trophy size={15}/>} title="Top Merchants" subtitle="Click a merchant to view all expenses · Ranked by total spend" isDark={isDark}/>
                     <div className="flex flex-col gap-1.5 overflow-y-auto pr-0.5" style={{ maxHeight: "260px" }}>
-                        {loadingMerch ? [1,2,3,4,5].map(i => <Pulse key={i} isDark={isDark} h="h-10"/>)
-                        : merchants.length === 0 ? <EmptyState icon={<Trophy size={22}/>} text="No merchant data — import a statement to populate this." isDark={isDark}/>
-                        : merchants.slice(0, 10).map((m, i) => (
-                            <div key={i} onClick={() => openMerchantModal(m.keyword)}
-                                className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all"
-                                style={{ background: isDark ? "rgba(49,57,77,0.35)" : "rgba(16,185,129,0.04)", border: isDark ? "1px solid rgba(78,222,163,0.04)" : "1px solid rgba(16,185,129,0.08)" }}
-                                onMouseEnter={e => e.currentTarget.style.border = isDark ? "1px solid rgba(78,222,163,0.20)" : "1px solid rgba(16,185,129,0.25)"}
-                                onMouseLeave={e => e.currentTarget.style.border = isDark ? "1px solid rgba(78,222,163,0.04)" : "1px solid rgba(16,185,129,0.08)"}
-                            >
-                                <span className="font-black text-xs w-5 text-center shrink-0" style={{ color: i === 0 ? "#f59e0b" : i === 1 ? "#94a3b8" : i === 2 ? "#b45309" : isDark ? "#4b5563" : "#9ca3af" }}>#{m.rank}</span>
-                                <span className="text-text-primary text-sm font-medium flex-1 truncate capitalize">{m.keyword}</span>
-                                <div className="w-16 h-1.5 rounded-full shrink-0" style={{ background: isDark ? "rgba(49,57,77,0.8)" : "rgba(16,185,129,0.10)" }}>
-                                    <div className="h-1.5 rounded-full" style={{ width: `${Number(m.percentage)}%`, background: isDark ? "linear-gradient(90deg,#4edea3,#10b981)" : "linear-gradient(90deg,#10b981,#059669)" }}/>
+                        {loadingMerch
+                            ? [1,2,3,4,5].map(i => <Pulse key={i} isDark={isDark} h="h-10"/>)
+                            : merchants.length === 0
+                            ? <EmptyState icon={<Trophy size={22}/>} text="No merchant data — import a statement to populate this." isDark={isDark}/>
+                            : merchants.slice(0, 10).map((m, i) => (
+                                <div key={i} onClick={() => openMerchantModal(m.keyword)}
+                                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all"
+                                    style={{ background: isDark ? "rgba(49,57,77,0.35)" : "rgba(16,185,129,0.04)", border: isDark ? "1px solid rgba(78,222,163,0.04)" : "1px solid rgba(16,185,129,0.08)" }}
+                                    onMouseEnter={e => e.currentTarget.style.border = isDark ? "1px solid rgba(78,222,163,0.20)" : "1px solid rgba(16,185,129,0.25)"}
+                                    onMouseLeave={e => e.currentTarget.style.border = isDark ? "1px solid rgba(78,222,163,0.04)" : "1px solid rgba(16,185,129,0.08)"}>
+                                    <span className="font-black text-xs w-5 text-center shrink-0" style={{ color: i === 0 ? "#f59e0b" : i === 1 ? "#94a3b8" : i === 2 ? "#b45309" : isDark ? "#4b5563" : "#9ca3af" }}>#{m.rank}</span>
+                                    <span className="text-text-primary text-sm font-medium flex-1 truncate capitalize">{m.keyword}</span>
+                                    <div className="w-16 h-1.5 rounded-full shrink-0" style={{ background: isDark ? "rgba(49,57,77,0.8)" : "rgba(16,185,129,0.10)" }}>
+                                        <div className="h-1.5 rounded-full" style={{ width: `${Number(m.percentage)}%`, background: isDark ? "linear-gradient(90deg,#4edea3,#10b981)" : "linear-gradient(90deg,#10b981,#059669)" }}/>
+                                    </div>
+                                    <span className="text-xs shrink-0 w-9 text-right" style={{ color: isDark ? "#8892a4" : "rgba(0,108,73,0.55)" }}>{Number(m.percentage).toFixed(1)}%</span>
+                                    <span className="text-sm font-bold shrink-0 text-text-primary">₹{formatCurrency(m.totalSpent)}</span>
                                 </div>
-                                <span className="text-xs shrink-0 w-9 text-right" style={{ color: isDark ? "#8892a4" : "rgba(0,108,73,0.55)" }}>{Number(m.percentage).toFixed(1)}%</span>
-                                <span className="text-sm font-bold shrink-0 text-text-primary">₹{formatCurrency(m.totalSpent)}</span>
-                            </div>
-                        ))}
+                            ))
+                        }
                     </div>
                 </Card>
 
                 <Card isDark={isDark}>
                     <CardHeader icon={<Repeat2 size={15}/>} title="Recurring Tracker" subtitle="Auto-detected monthly subscriptions" isDark={isDark}/>
                     <div className="flex flex-col gap-2 overflow-y-auto pr-0.5" style={{ maxHeight: "220px" }}>
-                        {loadingSubs ? [1,2,3].map(i => <Pulse key={i} isDark={isDark} h="h-14"/>)
-                        : subscriptions.length === 0 ? <EmptyState icon={<Repeat2 size={22}/>} text="No recurring expenses detected yet." isDark={isDark}/>
-                        : subscriptions.map((s, i) => {
-                            const daysUntilNext = Math.ceil((new Date(s.nextExpectedChargeDate) - new Date()) / 86400000);
-                            const isDue = daysUntilNext >= 0 && daysUntilNext <= 5;
-                            return (
-                                <div key={i} className="rounded-xl px-3 py-3" style={{ background: isDark ? "rgba(49,57,77,0.40)" : "rgba(16,185,129,0.04)", border: isDue ? "1px solid rgba(245,158,11,0.35)" : isDark ? "1px solid rgba(78,222,163,0.06)" : "1px solid rgba(16,185,129,0.10)" }}>
-                                    <div className="flex items-start justify-between gap-2">
-                                        <div className="min-w-0 flex-1">
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                                {editingKeyword === s.keyword ? (
-                                                    <>
-                                                        <input autoFocus value={editValue} onChange={e => setEditValue(e.target.value)}
-                                                            onKeyDown={e => { if (e.key === "Enter") handleRename(s.keyword); if (e.key === "Escape") setEditingKeyword(null); }}
-                                                            style={{ background: isDark ? "rgba(49,57,77,0.9)" : "rgba(16,185,129,0.07)", color: isDark ? "#e2e8f0" : "#0D4A2A", border: isDark ? "1px solid rgba(78,222,163,0.35)" : "1px solid rgba(16,185,129,0.35)", borderRadius: "6px", padding: "2px 7px", fontSize: "13px", fontWeight: 700, outline: "none", width: "120px" }}/>
-                                                        <button onClick={() => handleRename(s.keyword)} disabled={renamingLoading} style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 5, background: isDark ? "rgba(78,222,163,0.15)" : "rgba(16,185,129,0.12)", color: isDark ? "#4edea3" : "#059669", border: "none", cursor: "pointer" }}>{renamingLoading ? "..." : "Save"}</button>
-                                                        <button onClick={() => setEditingKeyword(null)} style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 5, background: "rgba(239,68,68,0.10)", color: "#ef4444", border: "none", cursor: "pointer" }}>✕</button>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <span className="text-text-primary text-sm font-bold truncate">{s.keyword}</span>
-                                                        <button onClick={() => { setEditingKeyword(s.keyword); setEditValue(s.keyword); }} style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 4, background: isDark ? "rgba(78,222,163,0.08)" : "rgba(16,185,129,0.08)", color: isDark ? "#4edea3" : "#059669", border: isDark ? "1px solid rgba(78,222,163,0.15)" : "1px solid rgba(16,185,129,0.15)", cursor: "pointer" }}>rename</button>
-                                                    </>
-                                                )}
-                                                {isDue && <span style={{ fontSize: 10, fontWeight: 800, padding: "1px 6px", borderRadius: 5, background: "rgba(245,158,11,0.15)", color: "#f59e0b", flexShrink: 0 }}>Due in {daysUntilNext}d</span>}
+                        {loadingSubs
+                            ? [1,2,3].map(i => <Pulse key={i} isDark={isDark} h="h-14"/>)
+                            : subscriptions.length === 0
+                            ? <EmptyState icon={<Repeat2 size={22}/>} text="No recurring expenses detected yet." isDark={isDark}/>
+                            : subscriptions.map((s, i) => {
+                                const daysUntilNext = Math.ceil((new Date(s.nextExpectedChargeDate) - new Date()) / 86400000);
+                                const isDue = daysUntilNext >= 0 && daysUntilNext <= 5;
+                                return (
+                                    <div key={i} className="rounded-xl px-3 py-3"
+                                        style={{ background: isDark ? "rgba(49,57,77,0.40)" : "rgba(16,185,129,0.04)", border: isDue ? "1px solid rgba(245,158,11,0.35)" : isDark ? "1px solid rgba(78,222,163,0.06)" : "1px solid rgba(16,185,129,0.10)" }}>
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    {editingKeyword === s.keyword ? (
+                                                        <>
+                                                            <input autoFocus value={editValue} onChange={e => setEditValue(e.target.value)}
+                                                                onKeyDown={e => { if (e.key === "Enter") handleRename(s.keyword); if (e.key === "Escape") setEditingKeyword(null); }}
+                                                                style={{ background: isDark ? "rgba(49,57,77,0.9)" : "rgba(16,185,129,0.07)", color: isDark ? "#e2e8f0" : "#0D4A2A", border: isDark ? "1px solid rgba(78,222,163,0.35)" : "1px solid rgba(16,185,129,0.35)", borderRadius: "6px", padding: "2px 7px", fontSize: "13px", fontWeight: 700, outline: "none", width: "120px" }}/>
+                                                            <button onClick={() => handleRename(s.keyword)} disabled={renamingLoading} style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 5, background: isDark ? "rgba(78,222,163,0.15)" : "rgba(16,185,129,0.12)", color: isDark ? "#4edea3" : "#059669", border: "none", cursor: "pointer" }}>{renamingLoading ? "..." : "Save"}</button>
+                                                            <button onClick={() => setEditingKeyword(null)} style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 5, background: "rgba(239,68,68,0.10)", color: "#ef4444", border: "none", cursor: "pointer" }}>✕</button>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <span className="text-text-primary text-sm font-bold truncate">{s.keyword}</span>
+                                                            <button onClick={() => { setEditingKeyword(s.keyword); setEditValue(s.keyword); }} style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 4, background: isDark ? "rgba(78,222,163,0.08)" : "rgba(16,185,129,0.08)", color: isDark ? "#4edea3" : "#059669", border: isDark ? "1px solid rgba(78,222,163,0.15)" : "1px solid rgba(16,185,129,0.15)", cursor: "pointer" }}>rename</button>
+                                                        </>
+                                                    )}
+                                                    {isDue && <span style={{ fontSize: 10, fontWeight: 800, padding: "1px 6px", borderRadius: 5, background: "rgba(245,158,11,0.15)", color: "#f59e0b", flexShrink: 0 }}>Due in {daysUntilNext}d</span>}
+                                                </div>
+                                                <p className="text-xs mt-0.5 truncate" style={{ color: isDark ? "rgba(136,146,164,0.65)" : "rgba(0,108,73,0.50)" }}>Every ~{s.averageGap}d · Next: {s.nextExpectedChargeDate}</p>
                                             </div>
-                                            <p className="text-xs mt-0.5 truncate" style={{ color: isDark ? "rgba(136,146,164,0.65)" : "rgba(0,108,73,0.50)" }}>Every ~{s.averageGap}d · Next: {s.nextExpectedChargeDate}</p>
-                                        </div>
-                                        <div className="text-right shrink-0">
-                                            <p className="text-text-primary font-bold text-sm">₹{formatCurrency(s.averageAmount)}/mo</p>
-                                            <p className="text-xs" style={{ color: isDark ? "rgba(136,146,164,0.65)" : "rgba(0,108,73,0.50)" }}>₹{formatCurrency(s.annualCost)}/yr</p>
+                                            <div className="text-right shrink-0">
+                                                <p className="text-text-primary font-bold text-sm">₹{formatCurrency(s.averageAmount)}/mo</p>
+                                                <p className="text-xs" style={{ color: isDark ? "rgba(136,146,164,0.65)" : "rgba(0,108,73,0.50)" }}>₹{formatCurrency(s.annualCost)}/yr</p>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            );
-                        })}
+                                );
+                            })
+                        }
                     </div>
                     {subscriptions.length > 0 && (
                         <div className="flex items-center justify-between px-3 py-2.5 rounded-xl mt-auto" style={{ background: isDark ? "rgba(78,222,163,0.07)" : "rgba(16,185,129,0.07)", border: isDark ? "1px solid rgba(78,222,163,0.12)" : "1px solid rgba(16,185,129,0.15)" }}>
@@ -416,23 +485,12 @@ function InsightsPage() {
 
             {/* Merchant Drill-Down Modal */}
             {merchantModal && (
-                <div
-                    className="fixed inset-0 z-50 flex items-center justify-center"
+                <div className="fixed inset-0 z-50 flex items-center justify-center"
                     style={{ backgroundColor: "rgba(0,0,0,0.75)", backdropFilter: "blur(10px)" }}
-                    onClick={() => setMerchantModal(null)}
-                >
-                    <div
-                        className="relative flex flex-col rounded-2xl shadow-2xl"
-                        style={{
-                            backgroundColor: isDark ? "rgba(26,36,56,0.97)" : "rgba(255,255,255,0.97)",
-                            border: isDark ? "1px solid rgba(78,222,163,0.15)" : "1px solid rgba(16,185,129,0.20)",
-                            width: "min(96vw, 560px)",
-                            maxHeight: "72vh",
-                            overflow: "hidden",
-                        }}
-                        onClick={e => e.stopPropagation()}
-                    >
-                        {/* Header */}
+                    onClick={() => setMerchantModal(null)}>
+                    <div className="relative flex flex-col rounded-2xl shadow-2xl"
+                        style={{ backgroundColor: isDark ? "rgba(26,36,56,0.97)" : "rgba(255,255,255,0.97)", border: isDark ? "1px solid rgba(78,222,163,0.15)" : "1px solid rgba(16,185,129,0.20)", width: "min(96vw, 560px)", maxHeight: "72vh", overflow: "hidden" }}
+                        onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-between px-6 py-4 shrink-0"
                             style={{ background: isDark ? "linear-gradient(135deg,rgba(78,222,163,0.13),rgba(16,185,129,0.07))" : "linear-gradient(135deg,rgba(16,185,129,0.10),rgba(5,150,105,0.04))", borderBottom: isDark ? "1px solid rgba(78,222,163,0.12)" : "1px solid rgba(16,185,129,0.15)" }}>
                             <div className="flex items-center gap-3">
@@ -448,12 +506,8 @@ function InsightsPage() {
                                 className="w-8 h-8 flex items-center justify-center rounded-lg transition-all text-sm"
                                 style={{ color: isDark ? "#8892a4" : "#4A6358" }}
                                 onMouseEnter={e => { e.currentTarget.style.backgroundColor = "rgba(78,222,163,0.12)"; e.currentTarget.style.color = isDark ? "#4edea3" : "#006C49"; }}
-                                onMouseLeave={e => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = isDark ? "#8892a4" : "#4A6358"; }}>
-                                ✕
-                            </button>
+                                onMouseLeave={e => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = isDark ? "#8892a4" : "#4A6358"; }}>✕</button>
                         </div>
-
-                        {/* Body */}
                         <div className="overflow-y-auto flex-1" style={{ minHeight: 0 }}>
                             {merchantModalLoading ? (
                                 <div className="flex items-center justify-center py-16">
@@ -464,11 +518,9 @@ function InsightsPage() {
                             ) : (
                                 <table className="w-full text-sm">
                                     <thead className="sticky top-0" style={{ backgroundColor: isDark ? "rgba(26,36,56,0.97)" : "rgba(255,255,255,0.97)", borderBottom: isDark ? "1px solid rgba(78,222,163,0.08)" : "1px solid rgba(16,185,129,0.10)" }}>
-                                        <tr>
-                                            {["Date","Description","Category","Amount"].map(h => (
-                                                <th key={h} className="text-left px-5 py-3 text-xs font-semibold tracking-widest" style={{ color: isDark ? "#8892a4" : "rgba(0,108,73,0.6)" }}>{h}</th>
-                                            ))}
-                                        </tr>
+                                        <tr>{["Date","Description","Category","Amount"].map(h => (
+                                            <th key={h} className="text-left px-5 py-3 text-xs font-semibold tracking-widest" style={{ color: isDark ? "#8892a4" : "rgba(0,108,73,0.6)" }}>{h}</th>
+                                        ))}</tr>
                                     </thead>
                                     <tbody>
                                         {merchantExpenses.map(exp => (
@@ -491,8 +543,6 @@ function InsightsPage() {
                                 </table>
                             )}
                         </div>
-
-                        {/* Footer */}
                         {!merchantModalLoading && merchantExpenses.length > 0 && (
                             <div className="flex items-center justify-between px-5 py-3 shrink-0 text-xs"
                                 style={{ borderTop: isDark ? "1px solid rgba(78,222,163,0.10)" : "1px solid rgba(16,185,129,0.12)", backgroundColor: isDark ? "rgba(78,222,163,0.04)" : "rgba(16,185,129,0.04)" }}>

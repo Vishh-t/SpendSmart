@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Clock, AlertTriangle } from "lucide-react";
-import { getAnnualSummary, getBudgetStatus, getFinancialSummary, getPaginatedExpenses } from "../services/expenseService.js";
+import { getDashboardSummary } from "../services/expenseService.js";
 import { formatCurrency } from "../utils/formatCurrency.js";
 import { ErrorState, DashboardSkeleton } from "../components/ui/PageState.jsx";
 import StatCard from "../components/dashboard/StatCard.jsx";
@@ -23,20 +23,14 @@ function DashBoard() {
     useEffect(() => {
         async function fetchDashboardData() {
             try {
-                const safeGet = (promise, fallback) => promise.catch(err => {
-                    if (err.response?.status === 404 || err.response?.status === 400) return fallback;
+                const summary = await getDashboardSummary(selectedYear).catch(err => {
+                    if (err.response?.status === 404 || err.response?.status === 400) return null;
                     throw err;
                 });
-                const [financial, budget, annual, expenses] = await Promise.all([
-                    safeGet(getFinancialSummary(), null),
-                    safeGet(getBudgetStatus(), null),
-                    safeGet(getAnnualSummary(selectedYear), null),
-                    safeGet(getPaginatedExpenses(0, 5, "expenseTimestamp", "desc"), { content: [] })
-                ]);
-                setFinancialSummary(financial);
-                setBudgetStatus(budget);
-                setAnnualSummary(annual);
-                setRecentExpenses(expenses?.content ?? []);
+                setFinancialSummary(summary?.financialSummary ?? null);
+                setBudgetStatus(summary?.budgetStatus ?? null);
+                setAnnualSummary(summary?.annualSummary ?? null);
+                setRecentExpenses(summary?.recentExpenses ?? []);
             } catch (err) {
                 setError("Failed to load dashboard data.");
             } finally {

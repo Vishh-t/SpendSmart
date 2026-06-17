@@ -59,4 +59,11 @@ public class InsightsController
         return new ResponseEntity<>(service.monthlyDelta(loggedInUser, month1, year1, month2, year2), HttpStatus.OK);
     }
 
+    @GetMapping("/summary")
+    public ResponseEntity<?> insightsSummary()
+    {
+        User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
+        return new ResponseEntity<>(service.getInsightsSummary(loggedInUser), HttpStatus.OK);
+    }
+
 }

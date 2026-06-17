@@ -15,6 +15,11 @@ export async function getAnnualSummary(year) {
     return response.data;
 }
 
+export async function getDashboardSummary(year) {
+    const response = await api.get(`/expense/dashboardSummary?year=${year}`);
+    return response.data;
+}
+
 export async function getAllExpenses() {
     const response = await api.get("/expense/");
     return response.data;
@@ -22,6 +27,14 @@ export async function getAllExpenses() {
 
 export async function getPaginatedExpenses(page, size, sortBy, direction) {
     const response = await api.get(`/expense/paginated?page=${page}&size=${size}&sortBy=${sortBy}&direction=${direction}`);
+    return response.data;
+}
+
+export async function getFilteredPaginatedExpenses(page, size, sortBy, direction, categoryId, search) {
+    const params = { page, size, sortBy, direction };
+    if (categoryId != null) params.categoryId = categoryId;
+    if (search != null && search.trim() !== "") params.search = search.trim();
+    const response = await api.get("/expense/paginatedFiltered", { params });
     return response.data;
 }
 

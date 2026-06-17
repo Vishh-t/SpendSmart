@@ -39,3 +39,8 @@ export async function getMonthlyDelta(month1, year1, month2, year2) {
     const response = await api.get("/insights/monthlyDelta", { params });
     return response.data;
 }
+
+export async function getInsightsSummary() {
+    const response = await api.get("/insights/summary");
+    return response.data;
+}
