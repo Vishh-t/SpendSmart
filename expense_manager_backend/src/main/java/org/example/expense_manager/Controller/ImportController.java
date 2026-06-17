@@ -2,6 +2,7 @@ package org.example.expense_manager.Controller;
 
 import lombok.RequiredArgsConstructor;
 import org.example.expense_manager.DTO.ServiceDTOs.ParsedTransactionDTO;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.example.expense_manager.Entity.User;
 import org.example.expense_manager.Exceptions.AppException;
 import org.example.expense_manager.Service.ImportService;
@@ -39,6 +40,14 @@ public class ImportController
     {
         User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
         service.saveMapping(loggedInUser, keyword, categoryId);
+        return new ResponseEntity<>(HttpStatus.OK);
+    }
+
+    @PostMapping("/saveMappingsBulk")
+    public ResponseEntity<?> saveMappingsBulk(@RequestBody List<org.example.expense_manager.DTO.ControllerDTOs.KeywordMappingDTO> mappings)
+    {
+        User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
+        service.saveMappingsBulk(loggedInUser, mappings);
         return new ResponseEntity<>(HttpStatus.OK);
     }
 

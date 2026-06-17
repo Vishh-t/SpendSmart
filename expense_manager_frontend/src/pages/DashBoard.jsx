@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { Clock, AlertTriangle } from "lucide-react";
-import { getAnnualSummary, getBudgetStatus, getFinancialSummary, getSortedExpenses } from "../services/expenseService.js";
+import { getAnnualSummary, getBudgetStatus, getFinancialSummary, getPaginatedExpenses } from "../services/expenseService.js";
 import { formatCurrency } from "../utils/formatCurrency.js";
-import { LoadingState, ErrorState } from "../components/ui/PageState.jsx";
+import { ErrorState, DashboardSkeleton } from "../components/ui/PageState.jsx";
 import StatCard from "../components/dashboard/StatCard.jsx";
 import SpendingChart from "../components/dashboard/SpendingChart.jsx";
 import CategoryDonut from "../components/dashboard/CategoryDonut.jsx";
@@ -31,12 +31,12 @@ function DashBoard() {
                     safeGet(getFinancialSummary(), null),
                     safeGet(getBudgetStatus(), null),
                     safeGet(getAnnualSummary(selectedYear), null),
-                    safeGet(getSortedExpenses("expenseTimestamp", "desc"), [])
+                    safeGet(getPaginatedExpenses(0, 5, "expenseTimestamp", "desc"), { content: [] })
                 ]);
                 setFinancialSummary(financial);
                 setBudgetStatus(budget);
                 setAnnualSummary(annual);
-                setRecentExpenses((expenses ?? []).slice(0, 5));
+                setRecentExpenses(expenses?.content ?? []);
             } catch (err) {
                 setError("Failed to load dashboard data.");
             } finally {
@@ -46,7 +46,7 @@ function DashBoard() {
         fetchDashboardData().catch(console.error);
     }, [refreshKey, selectedYear]);
 
-    if (isLoading) return <LoadingState />;
+    if (isLoading) return <DashboardSkeleton />;
     if (error)     return <ErrorState message={error} />;
 
     const budgetPercent = ((budgetStatus?.spent / budgetStatus?.budget) * 100).toFixed(1);

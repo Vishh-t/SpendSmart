@@ -10,7 +10,7 @@ import {
 import { getAllCategories } from "../services/categoryService.js";
 import { formatCurrency } from "../utils/formatCurrency.js";
 import { formatDateUpper } from "../utils/formatDate.js";
-import { LoadingState, ErrorState } from "../components/ui/PageState.jsx";
+import { ErrorState, ExpensesSkeleton } from "../components/ui/PageState.jsx";
 import ConfirmModal from "../components/modals/ConfirmModal.jsx";
 import EditExpenseModal from "../components/modals/EditExpenseModal.jsx";
 import CategoryExpensesModal from "../components/modals/CategoryExpensesModal.jsx";
@@ -24,6 +24,8 @@ function ExpensesPage() {
     const [categories,       setCategories]       = useState([]);
     const [financialSummary, setFinancialSummary] = useState(null);
     const [isLoading,        setIsLoading]        = useState(true);
+    const [isTableLoading,   setIsTableLoading]   = useState(false);
+    const [hasLoadedOnce,    setHasLoadedOnce]    = useState(false);
     const [error,            setError]            = useState(null);
 
     // Server-side pagination tracking
@@ -32,6 +34,7 @@ function ExpensesPage() {
     const [filteredTotal,    setFilteredTotal]    = useState(0);
 
     const [searchQuery,      setSearchQuery]      = useState("");
+    const [searchInput,      setSearchInput]      = useState("");
     const [selectedCategory, setSelectedCategory] = useState("all");
     const [sortBy,           setSortBy]           = useState("expenseTimestamp");
     const [order,            setOrder]            = useState("desc");
@@ -49,6 +52,15 @@ function ExpensesPage() {
     const badgeGlowColor = isDark ? "rgba(78, 222, 163, 0.55)" : "rgba(16, 185, 129, 0.45)";
     const isFiltering = searchQuery.trim() !== "" || selectedCategory !== "all";
 
+    // Debounce search input → searchQuery (300ms)
+    useEffect(() => {
+        const handle = setTimeout(() => {
+            setSearchQuery(searchInput);
+            setCurrentPage(1);
+        }, 300);
+        return () => clearTimeout(handle);
+    }, [searchInput]);
+
     useEffect(() => {
         function handleClickOutside(e) {
             if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setDropdownOpen(false);
@@ -61,7 +73,7 @@ function ExpensesPage() {
     useEffect(() => {
         async function loadData() {
             try {
-                setIsLoading(true);
+                setIsTableLoading(true);
 
                 // Fetch basic config data once
                 if (categories.length === 0) {
@@ -114,6 +126,8 @@ function ExpensesPage() {
                 setError("Failed to load expenses.");
             } finally {
                 setIsLoading(false);
+                setIsTableLoading(false);
+                setHasLoadedOnce(true);
             }
         }
 
@@ -141,7 +155,7 @@ function ExpensesPage() {
 
     async function handleEditSuccess() { setEditExpense(null); triggerRefresh(); }
 
-    if (isLoading && expenses.length === 0) return <LoadingState />;
+    if (isLoading && !hasLoadedOnce) return <ExpensesSkeleton />;
     if (error) return <ErrorState message={error} />;
 
     return (
@@ -178,13 +192,13 @@ function ExpensesPage() {
                     <input
                         type="text"
                         placeholder="Search..."
-                        value={searchQuery}
-                        onChange={(e) => {
-                            setSearchQuery(e.target.value);
-                            setCurrentPage(1);
-                        }}
+                        value={searchInput}
+                        onChange={(e) => setSearchInput(e.target.value)}
                         className="bg-transparent text-text-primary text-sm outline-none placeholder-text-secondary w-full min-w-0"
                     />
+                    {isTableLoading && (
+                        <div className="w-3.5 h-3.5 rounded-full border-2 border-primary border-t-transparent animate-spin shrink-0" />
+                    )}
                 </div>
 
                 <div className="flex gap-2 shrink-0">
@@ -230,7 +244,10 @@ function ExpensesPage() {
             </div>
 
             {/* Desktop Table */}
-            <div className="bg-surface-high rounded-xl hidden md:block">
+            <div className="bg-surface-high rounded-xl hidden md:block relative">
+                {isTableLoading && (
+                    <div className="absolute inset-0 z-10 rounded-xl" style={{ backgroundColor: "rgba(var(--raw-modal-bg), 0.35)", backdropFilter: "blur(1px)" }} />
+                )}
                 <table className="w-full">
                     <thead>
                     <tr className="text-text-secondary text-xs tracking-widest border-b border-surface-bright">

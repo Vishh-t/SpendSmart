@@ -3,7 +3,7 @@ import { Plus, Trash2, Tag, Loader2, Target } from "lucide-react";
 import { getAllCategories, addCategory, deleteCategory, setCategoryBudget, getCategoryBudgetSummary } from "../services/categoryService.js";
 import { getFinancialSummary } from "../services/expenseService.js";
 import { formatCurrency } from "../utils/formatCurrency.js";
-import { LoadingState, ErrorState } from "../components/ui/PageState.jsx";
+import { ErrorState, CategoriesSkeleton } from "../components/ui/PageState.jsx";
 import ConfirmModal from "../components/modals/ConfirmModal.jsx";
 import { useTheme } from "../context/ThemeContext.jsx";
 
@@ -237,7 +237,7 @@ function CategoriesPage() {
         }
     }
 
-    if (isLoading) return <LoadingState />;
+    if (isLoading) return <CategoriesSkeleton />;
     if (error)     return <ErrorState message={error} />;
 
     const totalExposure = financialSummary?.totalSpent ?? 0;

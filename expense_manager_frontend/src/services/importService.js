@@ -18,6 +18,11 @@ export async function saveMapping(keyword, categoryId) {
     return response.data;
 }
 
+export async function saveMappingsBulk(mappings) {
+    const response = await api.post("/import/saveMappingsBulk", mappings);
+    return response.data;
+}
+
 export async function bulkAddExpenses(items) {
     const response = await api.post("/expense/bulk", items);
     return response.data;

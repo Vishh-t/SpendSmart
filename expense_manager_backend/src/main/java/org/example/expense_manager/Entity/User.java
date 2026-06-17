@@ -34,9 +34,8 @@ public class User implements UserDetails
 
     @NotBlank
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-    @Size(min  = 8 , max = 25)
+    @Size(min  = 8)
     private String password;
-
 
     @Column(columnDefinition = "DECIMAL DEFAULT 5000")
     private BigDecimal monthlyBudget = BigDecimal.valueOf(5000);
@@ -53,7 +52,6 @@ public class User implements UserDetails
     @NotBlank
     @Email
     private String email;
-
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {

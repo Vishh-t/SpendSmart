@@ -57,7 +57,7 @@ import {
     AlertTriangle, CheckCircle2, Trash2, ShieldAlert,
     ToggleLeft, ToggleRight, ArrowLeft, Sparkles, Plus, CalendarDays, Search
 } from "lucide-react";
-import { parseStatement, saveMapping, bulkAddExpenses } from "../../services/importService.js";
+import { parseStatement, saveMappingsBulk, bulkAddExpenses } from "../../services/importService.js";
 import { getAllCategories, addCategory } from "../../services/categoryService.js";
 import Calendar, { toYMD, MONTHS } from "../ui/Calendar.jsx";
 
@@ -368,10 +368,17 @@ function ImportStatementModal({ onClose, onSuccess }) {
             }));
             await bulkAddExpenses(toSave);
 
-            const mappingPromises = activeRows
+            const uniqueMappings = new Map();
+            activeRows
                 .filter(r => r.keyword && r.categoryId)
-                .map(r => saveMapping(r.keyword, r.categoryId).catch(() => {}));
-            await Promise.allSettled(mappingPromises);
+                .forEach(r => uniqueMappings.set(r.keyword, r.categoryId));
+
+            const mappingsPayload = Array.from(uniqueMappings.entries())
+                .map(([keyword, categoryId]) => ({ keyword, categoryId }));
+
+            if (mappingsPayload.length > 0) {
+                await saveMappingsBulk(mappingsPayload).catch(() => {});
+            }
 
             setSavedCount(toSave.length);
             onSuccess?.();
@@ -497,6 +504,13 @@ function ImportStatementModal({ onClose, onSuccess }) {
                             <AlertTriangle size={15} style={{ color: "var(--color-primary)", flexShrink: 0, marginTop: "2px" }} />
                             <p className="text-xs" style={{ color: "var(--color-text-secondary)", lineHeight: "1.6" }}>
                                 For best results, make sure you have <span style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>relevant categories set up beforehand</span> — such as Food, Transport, Shopping, Subscriptions, etc. If the AI cannot find a matching category, those expenses will be left <span style={{ color: "#ef4444" }}>uncategorized</span> and you'll need to assign them manually in the review screen.
+                            </p>
+                        </div>
+
+                        <div className="flex items-start gap-3 px-4 py-3.5 rounded-xl" style={{ backgroundColor: "rgba(var(--raw-input-bg),0.4)", border: "1px solid rgba(78,222,163,0.10)" }}>
+                            <Loader2 size={15} style={{ color: "var(--color-text-secondary)", flexShrink: 0, marginTop: "2px" }} />
+                            <p className="text-xs" style={{ color: "var(--color-text-secondary)", lineHeight: "1.6" }}>
+                                Longer statements (20+ pages) can take <span style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>3–4 minutes</span> to process since every page is analysed carefully. Please keep this window open while it's working.
                             </p>
                         </div>
 
@@ -679,6 +693,10 @@ function ImportStatementModal({ onClose, onSuccess }) {
                                     <span className="text-xs flex items-center gap-1.5" style={{ color: "#ef4444" }}>
                                         <AlertTriangle size={12} />
                                         {uncategorizedCount} row{uncategorizedCount !== 1 ? "s" : ""} need a category
+                                    </span>
+                                ) : willSaveCount > 50 ? (
+                                    <span className="text-xs" style={{ color: "var(--color-text-secondary)" }}>
+                                        {willSaveCount} expense{willSaveCount !== 1 ? "s" : ""} will be added — saving this many can take a minute, please wait
                                     </span>
                                 ) : (
                                     <span className="text-xs" style={{ color: "var(--color-text-secondary)" }}>

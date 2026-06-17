@@ -4,7 +4,7 @@ import { useTheme } from "../context/ThemeContext.jsx";
 import { getUserInfo, updateBudget, deleteAccount } from "../services/userService.js";
 import { getAllExpenses, getExpensesByDateRange } from "../services/expenseService.js";
 import { formatCurrency } from "../utils/formatCurrency.js";
-import { LoadingState, ErrorState } from "../components/ui/PageState.jsx";
+import { ErrorState, ProfileSkeleton } from "../components/ui/PageState.jsx";
 import { LogOut, Trash2, Save, User, Mail, AtSign, Wallet, AlertTriangle, X, ChevronDown, ShieldAlert, Edit3 } from "lucide-react";
 
 // ─── Date Expenses Modal ──────────────────────────────────────────────────────
@@ -489,7 +489,7 @@ function ProfilePage() {
         catch { setIsDeleting(false); setShowDeleteConfirm(false); setError("Failed to delete account."); throw new Error(); }
     }
 
-    if (isLoading) return <LoadingState message="Loading profile..." />;
+    if (isLoading) return <ProfileSkeleton />;
     if (error)     return <ErrorState message={error} />;
 
     return (

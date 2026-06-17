@@ -537,4 +537,13 @@ public class ImportService
             userCategoryMappingRepo.save(categoryMapping);
         }
     }
+
+    public void saveMappingsBulk(User user, List<org.example.expense_manager.DTO.ControllerDTOs.KeywordMappingDTO> mappings)
+    {
+        for (var mapping : mappings)
+        {
+            if (mapping.getKeyword() == null || mapping.getCategoryId() == null) continue;
+            saveMapping(user, mapping.getKeyword(), mapping.getCategoryId());
+        }
+    }
 }
