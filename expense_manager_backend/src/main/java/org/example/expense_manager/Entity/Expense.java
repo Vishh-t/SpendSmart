@@ -17,13 +17,14 @@ import java.time.LocalDateTime;
 @Data
 @Entity
 @Table(name = "expenses", indexes = {
-        @Index(name = "idx_user_timestamp", columnList = "user_id, expense_timestamp"),
-        @Index(name = "idx_user_keyword", columnList = "user_id, keyword")
+        @Index(name = "idx_user_timestamp", columnList = "userId, expenseTimestamp"),
+        @Index(name = "idx_user_keyword", columnList = "userId, keyword")
 })
 public class Expense
 {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "expense_seq")
+    @SequenceGenerator(name = "expense_seq", sequenceName = "expense_seq", allocationSize = 50)
     private Integer expenseId;
 
     @ManyToOne

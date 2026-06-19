@@ -13,14 +13,14 @@ import lombok.NoArgsConstructor;
 public class UserCategoryMapping
 {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "mapping_seq")
+    @SequenceGenerator(name = "mapping_seq", sequenceName = "mapping_seq", allocationSize = 50)
     private Integer id;
 
     @ManyToOne
     @JoinColumn(name = "userId")
     private User user;
-
-
+    
     private String keyword;
 
     @ManyToOne

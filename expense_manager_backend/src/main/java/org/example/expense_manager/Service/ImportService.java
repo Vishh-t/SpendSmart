@@ -5,8 +5,10 @@ import lombok.RequiredArgsConstructor;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
+import org.example.expense_manager.DTO.ControllerDTOs.KeywordMappingDTO;
 import org.example.expense_manager.DTO.ServiceDTOs.ParsedTransactionDTO;
 import org.example.expense_manager.Entity.Category;
+import org.example.expense_manager.Entity.Expense;
 import org.example.expense_manager.Entity.User;
 import org.example.expense_manager.Entity.UserCategoryMapping;
 import org.example.expense_manager.Exceptions.AppException;
@@ -28,10 +30,8 @@ import tools.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -52,7 +52,7 @@ public class ImportService
     final private RestTemplate template;
     final private org.example.expense_manager.Repository.UserRepo userRepo;
 
-    private static final int  MAX_RETRIES   = 3;       // 3 attempts per model
+    private static final int MAX_RETRIES = 3;       // 3 attempts per model
     private static final long INITIAL_DELAY = 3000L;   // 3s → 6s → 12s
 
     private static final String GEMINI_PROMPT = """
@@ -263,8 +263,7 @@ public class ImportService
         {
             PDFTextStripper stripper = new PDFTextStripper();
             return stripper.getText(document);
-        }
-        catch (Exception ex)
+        } catch (Exception ex)
         {
             throw new AppException("Could not read PDF");
         }
@@ -285,10 +284,15 @@ public class ImportService
                 .trim();
     }
 
-    private boolean isDuplicate(User user, BigDecimal amount, String keyword, LocalDateTime dateTime)
+    private boolean isDuplicate(Set<String> existingKeys, BigDecimal amount, String keyword, LocalDateTime dateTime)
     {
         if (keyword == null) return false;
-        return expenseRepo.existsByUserAndAmountAndKeywordAndExpenseTimestamp(user, amount, keyword, dateTime);
+        return existingKeys.contains(duplicateKey(amount, keyword, dateTime));
+    }
+
+    private String duplicateKey(BigDecimal amount, String keyword, LocalDateTime dateTime)
+    {
+        return amount.stripTrailingZeros().toPlainString() + "|" + keyword + "|" + dateTime;
     }
 
     /**
@@ -306,22 +310,25 @@ public class ImportService
             try
             {
                 return template.postForObject(url + "?key=" + api_key, entity, String.class);
-            }
-            catch (HttpServerErrorException e)
+            } catch (HttpServerErrorException e)
             {
                 int code = e.getStatusCode().value();
                 boolean isOverload = code == 503 || code == 529;
 
                 if (isOverload && attempt < MAX_RETRIES)
                 {
-                    try { Thread.sleep(delayMs); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+                    try
+                    {
+                        Thread.sleep(delayMs);
+                    } catch (InterruptedException ie)
+                    {
+                        Thread.currentThread().interrupt();
+                    }
                     delayMs *= 2;
-                }
-                else if (isOverload)
+                } else if (isOverload)
                 {
                     throw e;
-                }
-                else
+                } else
                 {
                     // non-retryable error — fail immediately
                     throw new AppException("Gemini API error (" + modelLabel + "): " + e.getMessage());
@@ -340,13 +347,12 @@ public class ImportService
         try
         {
             return tryUrl(api_url, entity, "gemini-2.5-flash (primary)");
-        }
-        catch (HttpServerErrorException e)
+        } catch (HttpServerErrorException e)
         {
             int code = e.getStatusCode().value();
             if (code == 503 || code == 529)
             {
-                    return tryUrl(api_fallback_url, entity, "gemini-2.5-flash-lite (fallback)");
+                return tryUrl(api_fallback_url, entity, "gemini-2.5-flash-lite (fallback)");
             }
             throw new AppException("Gemini API error: " + e.getMessage());
         }
@@ -408,8 +414,7 @@ public class ImportService
                 {
                     allResponses.append(chunkTransactions);
                 }
-            }
-            catch (Exception e)
+            } catch (Exception e)
             {
                 throw new AppException("Gemini response parsing failed: " + e.getMessage());
             }
@@ -458,8 +463,7 @@ public class ImportService
                 results.add(result);
             }
             return results;
-        }
-        catch (Exception e)
+        } catch (Exception e)
         {
             throw new AppException("Failed to parse Gemini response");
         }
@@ -514,9 +518,32 @@ public class ImportService
         List<ParsedTransactionDTO> statements = parseGeminiResponse(rawStatements);
         List<ParsedTransactionDTO> parsedStatements = applyUserMappings(user, statements);
 
+        LocalDateTime minDate = null;
+        LocalDateTime maxDate = null;
+
         for (var trans : parsedStatements)
         {
-            if (isDuplicate(user, trans.getAmount(), trans.getKeyword(), trans.getDateTime()))
+            if (trans.getDateTime() == null) continue;
+            if (minDate == null || trans.getDateTime().isBefore(minDate)) minDate = trans.getDateTime();
+            if (maxDate == null || trans.getDateTime().isAfter(maxDate)) maxDate = trans.getDateTime();
+        }
+
+        Set<String> existingKeys;
+        if (minDate != null && maxDate != null)
+        {
+            List<Expense> existingExpenses = expenseRepo.findAllByUserAndExpenseTimestampBetween(user, minDate, maxDate);
+            existingKeys = existingExpenses.stream()
+                    .filter(e -> e.getKeyword() != null)
+                    .map(e -> duplicateKey(e.getAmount(), e.getKeyword(), e.getExpenseTimestamp()))
+                    .collect(Collectors.toSet());
+        } else
+        {
+            existingKeys = Set.of();
+        }
+
+        for (var trans : parsedStatements)
+        {
+            if (isDuplicate(existingKeys, trans.getAmount(), trans.getKeyword(), trans.getDateTime()))
             {
                 trans.setDuplicate(true);
             }
@@ -538,12 +565,47 @@ public class ImportService
         }
     }
 
-    public void saveMappingsBulk(User user, List<org.example.expense_manager.DTO.ControllerDTOs.KeywordMappingDTO> mappings)
+    public void saveMappingsBulk(User user, List<KeywordMappingDTO> mappings)
+
     {
+
+        Set<String> existingKeywords = userCategoryMappingRepo.findAllByUser(user)
+                .stream()
+                .map(UserCategoryMapping::getKeyword)
+                .collect(Collectors.toSet());
+
+
+        List<Integer> categoryIds = mappings.stream()
+                .map(KeywordMappingDTO::getCategoryId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+
+        Map<Integer, Category> categoryMap = categoryRepo.findAllById(categoryIds)
+                .stream()
+                .collect(Collectors.toMap(Category::getCategoryId, c -> c));
+
+
+        List<UserCategoryMapping> newMappings = new ArrayList<>();
+
         for (var mapping : mappings)
         {
             if (mapping.getKeyword() == null || mapping.getCategoryId() == null) continue;
-            saveMapping(user, mapping.getKeyword(), mapping.getCategoryId());
+            if (existingKeywords.contains(mapping.getKeyword())) continue;
+
+            Category category = categoryMap.get(mapping.getCategoryId());
+            if (category == null) continue;
+
+            UserCategoryMapping newMapping = new UserCategoryMapping();
+            newMapping.setUser(user);
+            newMapping.setKeyword(mapping.getKeyword());
+            newMapping.setCategory(category);
+
+            newMappings.add(newMapping);
+            existingKeywords.add(mapping.getKeyword());
         }
+
+        userCategoryMappingRepo.saveAll(newMappings);
     }
+
 }

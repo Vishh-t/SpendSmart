@@ -19,7 +19,8 @@ import java.math.BigDecimal;
 public class Category
 {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "category_seq")
+    @SequenceGenerator(name = "category_seq", sequenceName = "category_seq", allocationSize = 20)
     private Integer categoryId;
 
     @NotBlank
