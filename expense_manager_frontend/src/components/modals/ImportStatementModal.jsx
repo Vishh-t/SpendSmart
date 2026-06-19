@@ -57,7 +57,7 @@ import {
     AlertTriangle, CheckCircle2, Trash2, ShieldAlert,
     ToggleLeft, ToggleRight, ArrowLeft, Sparkles, Plus, CalendarDays, Search
 } from "lucide-react";
-import { parseStatement, saveMappingsBulk, bulkAddExpenses } from "../../services/importService.js";
+import { parseStatement, pollImportJob, saveMappingsBulk, bulkAddExpenses } from "../../services/importService.js";
 import { getAllCategories, addCategory } from "../../services/categoryService.js";
 import Calendar, { toYMD, MONTHS } from "../ui/Calendar.jsx";
 
@@ -326,7 +326,8 @@ function ImportStatementModal({ onClose, onSuccess }) {
         setParsing(true);
         setParseError(null);
         try {
-            const data = await parseStatement(file, includeCredits);
+            const { jobId } = await parseStatement(file, includeCredits);
+            const data = await pollImportJob(jobId, { intervalMs: 2500 });
             const enriched = data.map((t, i) => ({
                 ...t,
                 _id: i,
@@ -337,7 +338,7 @@ function ImportStatementModal({ onClose, onSuccess }) {
             setSearchQuery("");
             setScreen("preview");
         } catch (err) {
-            setParseError(err?.response?.data?.message ?? "Failed to parse statement. Please try again.");
+            setParseError(err?.response?.data?.message ?? err?.message ?? "Failed to parse statement. Please try again.");
         } finally {
             setParsing(false);
         }

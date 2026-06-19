@@ -20,7 +20,7 @@ public class UserCategoryMapping
     @ManyToOne
     @JoinColumn(name = "userId")
     private User user;
-    
+
     private String keyword;
 
     @ManyToOne
