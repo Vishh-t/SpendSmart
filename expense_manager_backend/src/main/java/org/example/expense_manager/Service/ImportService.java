@@ -24,6 +24,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -51,6 +53,9 @@ public class ImportService
 
     @Value("${gemini.api.fallback3.url}")
     private String api_fallback3_url;
+
+    @Value("${gemini.api.fallback4.url}")
+    private String api_fallback4_url;
 
     final private ExpenseRepo expenseRepo;
     final private CategoryRepo categoryRepo;
@@ -345,10 +350,11 @@ public class ImportService
     private String callGeminiWithFallback(HttpEntity<Map<String, Object>> entity)
     {
         List<String[]> models = List.of(
-                new String[]{api_url,          "gemini-3-flash-preview (primary)"},
-                new String[]{api_fallback1_url, "gemini-3.1-flash-lite (fallback 1)"},
-                new String[]{api_fallback2_url, "gemini-2.5-flash (fallback 2)"},
-                new String[]{api_fallback3_url, "gemini-2.5-flash-lite (fallback 3)"}
+                new String[]{api_url,           "gemini-3.5-flash (primary)"},
+                new String[]{api_fallback1_url, "gemini-3-flash-preview (fallback 1)"},
+                new String[]{api_fallback2_url, "gemini-3.1-flash-lite (fallback 2)"},
+                new String[]{api_fallback3_url, "gemini-2.5-flash (fallback 3)"},
+                new String[]{api_fallback4_url, "gemini-2.5-flash-lite (fallback 4)"}
         );
 
         Exception lastException = null;
