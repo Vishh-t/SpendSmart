@@ -344,9 +344,38 @@ function ImportStatementModal({ onClose, onSuccess }) {
         }
     }
 
+    const [applyAllPrompt, setApplyAllPrompt] = useState(null); // { keyword, categoryId, count }
+
     const updateRow = useCallback((id, field, value) => {
         setRows(prev => prev.map(r => r._id === id ? { ...r, [field]: value } : r));
+        // When a category is assigned, check for uncategorized siblings with same keyword
+        if (field === "categoryId" && value != null) {
+            setRows(prev => {
+                const changedRow = prev.find(r => r._id === id);
+                if (!changedRow?.keyword) return prev;
+                const siblings = prev.filter(r =>
+                    r._id !== id &&
+                    !r._removed &&
+                    !r.categoryId &&
+                    r.keyword === changedRow.keyword
+                );
+                if (siblings.length > 0) {
+                    setApplyAllPrompt({ keyword: changedRow.keyword, categoryId: value, count: siblings.length });
+                }
+                return prev;
+            });
+        }
     }, []);
+
+    function handleApplyAll() {
+        if (!applyAllPrompt) return;
+        setRows(prev => prev.map(r =>
+            !r._removed && !r.categoryId && r.keyword === applyAllPrompt.keyword
+                ? { ...r, categoryId: applyAllPrompt.categoryId }
+                : r
+        ));
+        setApplyAllPrompt(null);
+    }
 
     const removeRow = useCallback((id) => {
         setRows(prev => prev.map(r => r._id === id ? { ...r, _removed: true } : r));
@@ -681,6 +710,26 @@ function ImportStatementModal({ onClose, onSuccess }) {
                                 </tbody>
                             </table>
                         </div>
+
+                        {applyAllPrompt && (
+                            <div className="flex items-center gap-3 px-7 py-3 shrink-0"
+                                style={{ borderTop: "1px solid rgba(78,222,163,0.08)", backgroundColor: "rgba(78,222,163,0.07)" }}>
+                                <Sparkles size={14} style={{ color: "var(--color-primary)", flexShrink: 0 }} />
+                                <p className="text-xs flex-1" style={{ color: "var(--color-text-primary)" }}>
+                                    Apply this category to <strong>{applyAllPrompt.count}</strong> other uncategorized <strong>{applyAllPrompt.keyword}</strong> transaction{applyAllPrompt.count !== 1 ? "s" : ""}?
+                                </p>
+                                <button onClick={handleApplyAll}
+                                    className="text-xs px-3 py-1.5 rounded-lg font-semibold"
+                                    style={{ background: "linear-gradient(135deg,#4edea3,#10b981)", color: "#003824" }}>
+                                    Apply All
+                                </button>
+                                <button onClick={() => setApplyAllPrompt(null)}
+                                    className="text-xs px-3 py-1.5 rounded-lg"
+                                    style={{ backgroundColor: "rgba(var(--raw-input-bg),0.5)", color: "var(--color-text-secondary)" }}>
+                                    Skip
+                                </button>
+                            </div>
+                        )}
 
                         {savedCount === null && (
                             <div className="flex items-center gap-4 px-7 py-4 shrink-0" style={{ borderTop: "1px solid rgba(78,222,163,0.08)" }}>
