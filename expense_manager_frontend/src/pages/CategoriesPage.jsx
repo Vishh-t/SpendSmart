@@ -5,13 +5,14 @@ import { getFinancialSummary } from "../services/expenseService.js";
 import { formatCurrency } from "../utils/formatCurrency.js";
 import { ErrorState, CategoriesSkeleton } from "../components/ui/PageState.jsx";
 import ConfirmModal from "../components/modals/ConfirmModal.jsx";
+import CategoryExpensesModal from "../components/modals/CategoryExpensesModal.jsx";
 import { useTheme } from "../context/ThemeContext.jsx";
 
 const CATEGORY_ICONS = ["🏠","🛒","🚗","🎬","⚡","💊","✈️","📚","💻","🍔","👕","🎮","💰","🏋️","🎵"];
 const COLORS_DARK  = ["#4edea3","#60a5fa","#f59e0b","#a78bfa","#34d399","#fb923c","#f472b6","#38bdf8","#4ade80","#facc15","#c084fc","#2dd4bf"];
 const COLORS_LIGHT = ["#059669","#2563eb","#d97706","#7c3aed","#16a34a","#ea580c","#db2777","#0284c7","#15803d","#ca8a04","#9333ea","#0d9488"];
 
-function CategoryCard({ category, totalSpent, budgetStatus, onDelete, onBudgetSet, colorIndex }) {
+function CategoryCard({ category, totalSpent, budgetStatus, onDelete, onBudgetSet, onView, colorIndex }) {
     const { isDark } = useTheme();
     const icon   = CATEGORY_ICONS[colorIndex % CATEGORY_ICONS.length];
     const colors = isDark ? COLORS_DARK : COLORS_LIGHT;
@@ -39,8 +40,9 @@ function CategoryCard({ category, totalSpent, budgetStatus, onDelete, onBudgetSe
 
     return (
         <div
-            className="rounded-2xl p-5 md:p-6 flex flex-col gap-3 md:gap-4 transition-all group"
+            className="rounded-2xl p-5 md:p-6 flex flex-col gap-3 md:gap-4 transition-all group cursor-pointer"
             style={{ backgroundColor: cardBg, border: `1px solid ${cardBorderIdle}`, boxShadow: cardShadowIdle }}
+            onClick={() => onView(category)}
             onMouseEnter={e => { e.currentTarget.style.border = `1px solid ${color}55`; e.currentTarget.style.boxShadow = isDark ? `0 0 0 1px ${color}22` : cardShadowHover; }}
             onMouseLeave={e => { e.currentTarget.style.border = `1px solid ${cardBorderIdle}`; e.currentTarget.style.boxShadow = cardShadowIdle; }}
         >
@@ -62,7 +64,7 @@ function CategoryCard({ category, totalSpent, budgetStatus, onDelete, onBudgetSe
                 </div>
                 {budgetStatus && (
                     <button
-                        onClick={() => setShowMonthly(v => !v)}
+                        onClick={(e) => { e.stopPropagation(); setShowMonthly(v => !v); }}
                         className="flex items-center rounded-lg px-2 py-0.5 text-xs font-medium transition-all shrink-0 mb-0.5"
                         style={{ backgroundColor: `${color}18`, color, border: `1px solid ${color}33` }}>
                         {showMonthly ? "All time" : "Monthly"}
@@ -78,7 +80,7 @@ function CategoryCard({ category, totalSpent, budgetStatus, onDelete, onBudgetSe
                     <div className="w-full rounded-full h-1.5" style={{ backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)" }}>
                         <div className="h-1.5 rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: barColor }} />
                     </div>
-                    <button onClick={() => { setEditingBudget(true); setBudgetInput(budgetStatus.categoryBudget); }}
+                    <button onClick={(e) => { e.stopPropagation(); setEditingBudget(true); setBudgetInput(budgetStatus.categoryBudget); }}
                         className="flex items-center gap-1.5 text-xs self-start opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all"
                         style={{ color: isDark ? "#8892a4" : "#4A6358" }}
                         onMouseEnter={e => e.currentTarget.style.color = color}
@@ -88,7 +90,7 @@ function CategoryCard({ category, totalSpent, budgetStatus, onDelete, onBudgetSe
                 </div>
             ) : (
                 !editingBudget && (
-                    <button onClick={() => setEditingBudget(true)}
+                    <button onClick={(e) => { e.stopPropagation(); setEditingBudget(true); }}
                         className="flex items-center gap-1.5 text-xs opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all self-start"
                         style={{ color: isDark ? "#8892a4" : "#4A6358" }}
                         onMouseEnter={e => e.currentTarget.style.color = color}
@@ -98,7 +100,7 @@ function CategoryCard({ category, totalSpent, budgetStatus, onDelete, onBudgetSe
                 )
             )}
             {editingBudget && (
-                <div className="flex gap-2 items-center">
+                <div className="flex gap-2 items-center" onClick={e => e.stopPropagation()}>
                     <input autoFocus type="number" placeholder="Monthly budget" value={budgetInput}
                         onChange={e => setBudgetInput(e.target.value)}
                         onKeyDown={e => { if (e.key === "Enter") handleBudgetSave(); if (e.key === "Escape") setEditingBudget(false); }}
@@ -110,7 +112,7 @@ function CategoryCard({ category, totalSpent, budgetStatus, onDelete, onBudgetSe
                     <button onClick={() => setEditingBudget(false)} className="px-2 py-1.5 rounded-lg text-xs" style={{ background: "rgba(239,68,68,0.10)", color: "#ef4444" }}>✕</button>
                 </div>
             )}
-            <button onClick={() => onDelete(category.categoryId, category.categoryName)}
+            <button onClick={(e) => { e.stopPropagation(); onDelete(category.categoryId, category.categoryName); }}
                 className="flex items-center gap-1.5 text-xs transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 self-start"
                 style={{ color: isDark ? "#8892a4" : "#4A6358" }}
                 onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
@@ -209,6 +211,7 @@ function CategoriesPage() {
     const [error,            setError]          = useState(null);
     const [confirmDelete,    setConfirmDelete]  = useState(null);
     const [deleteError,      setDeleteError]    = useState("");
+    const [viewCategory,     setViewCategory]   = useState(null);
 
     useEffect(() => { fetchData(); }, []);
 
@@ -280,6 +283,7 @@ function CategoriesPage() {
                         budgetStatus={budgetSummary.find(b => b.categoryName === cat.categoryName) ?? null}
                         onDelete={(id, name) => setConfirmDelete({ id, name })}
                         onBudgetSet={fetchData}
+                        onView={(c) => setViewCategory({ id: c.categoryId, name: c.categoryName })}
                         colorIndex={index}
                     />
                 ))}
@@ -298,6 +302,13 @@ function CategoriesPage() {
                     message={`Delete "${confirmDelete.name}"? This cannot be undone.`}
                     onConfirm={() => handleDelete(confirmDelete.id)}
                     onCancel={() => setConfirmDelete(null)}
+                />
+            )}
+
+            {viewCategory && (
+                <CategoryExpensesModal
+                    category={viewCategory}
+                    onClose={() => setViewCategory(null)}
                 />
             )}
         </div>

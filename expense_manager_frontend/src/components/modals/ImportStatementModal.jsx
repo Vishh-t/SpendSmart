@@ -59,6 +59,7 @@ import {
 } from "lucide-react";
 import { parseStatement, pollImportJob, saveMappingsBulk, bulkAddExpenses } from "../../services/importService.js";
 import { getAllCategories, addCategory } from "../../services/categoryService.js";
+import { getUserInfo } from "../../services/userService.js";
 import Calendar, { toYMD, MONTHS } from "../ui/Calendar.jsx";
 
 /* ─── confidence badge ───────────────────────────────────────────────────── */
@@ -79,29 +80,35 @@ function ConfidenceBadge({ score }) {
     );
 }
 
-/* ─── category dropdown cell ─────────────────────────────────────────────── */
+/* ─── category dropdown cell (search-first, matches AddExpenseModal pattern) ──── */
 function CategoryCell({ value, categories, onChange, onCategoryAdded }) {
     const [open,       setOpen]       = useState(false);
-    const [adding,     setAdding]     = useState(false);
-    const [newCatName, setNewCatName] = useState("");
+    const [search,     setSearch]     = useState("");
     const [saving,     setSaving]     = useState(false);
-    const ref     = useRef(null);
+    const ref      = useRef(null);
     const inputRef = useRef(null);
 
+    const selected = categories.find(c => c.categoryId === value);
+
     useEffect(() => {
-        function outside(e) { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setAdding(false); setNewCatName(""); } }
+        function outside(e) { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setSearch(""); } }
         document.addEventListener("mousedown", outside);
         return () => document.removeEventListener("mousedown", outside);
     }, []);
 
     useEffect(() => {
-        if (adding) setTimeout(() => inputRef.current?.focus(), 50);
-    }, [adding]);
+        if (open) setTimeout(() => inputRef.current?.focus(), 50);
+    }, [open]);
 
-    const selected = categories.find(c => c.categoryId === value);
+    const filteredCategories = categories.filter(c =>
+        c.categoryName.toLowerCase().includes(search.toLowerCase())
+    );
+
+    const isNewCategory = search.trim().length > 0 &&
+        !categories.some(c => c.categoryName.toLowerCase() === search.trim().toLowerCase());
 
     async function handleAddCategory() {
-        const name = newCatName.trim();
+        const name = search.trim();
         if (!name) return;
         setSaving(true);
         try {
@@ -110,9 +117,8 @@ function CategoryCell({ value, categories, onChange, onCategoryAdded }) {
             onCategoryAdded(updated);
             const created = updated.find(c => c.categoryName.toLowerCase() === name.toLowerCase());
             if (created) onChange(created.categoryId);
-            setAdding(false);
-            setNewCatName("");
             setOpen(false);
+            setSearch("");
         } catch {}
         finally { setSaving(false); }
     }
@@ -134,64 +140,76 @@ function CategoryCell({ value, categories, onChange, onCategoryAdded }) {
             </button>
             {open && (
                 <div
-                    className="absolute z-50 mt-1 rounded-xl shadow-2xl"
+                    className="absolute z-50 mt-1 rounded-xl overflow-hidden shadow-2xl flex flex-col"
                     style={{
                         backgroundColor: "rgba(var(--raw-dropdown-bg), 0.98)",
                         border: "1px solid rgba(78,222,163,0.14)",
-                        minWidth: "180px",
-                        maxHeight: "240px",
-                        overflowY: "auto",
+                        minWidth: "220px",
+                        maxHeight: "280px",
                         top: "100%",
                         left: 0,
                     }}
                 >
-                    <button
-                        className="w-full text-left px-3 py-2 text-xs"
-                        style={{ color: "var(--color-text-secondary)" }}
-                        onClick={() => { onChange(null); setOpen(false); }}
-                    >
-                        Uncategorized
-                    </button>
-                    {categories.map(cat => (
-                        <button
-                            key={cat.categoryId}
-                            className="w-full text-left px-3 py-2 text-xs"
-                            style={{ color: cat.categoryId === value ? "var(--color-primary)" : "var(--color-text-secondary)" }}
-                            onClick={() => { onChange(cat.categoryId); setOpen(false); }}
-                        >
-                            {cat.categoryName}
-                        </button>
-                    ))}
-                    <div style={{ borderTop: "1px solid rgba(78,222,163,0.10)", margin: "4px 0" }} />
-                    {!adding ? (
-                        <button
-                            className="w-full text-left px-3 py-2 text-xs flex items-center gap-1.5"
-                            style={{ color: "var(--color-primary)" }}
-                            onClick={() => setAdding(true)}
-                        >
-                            <Plus size={11} /> New Category
-                        </button>
-                    ) : (
-                        <div className="px-2 py-2 flex items-center gap-1.5">
-                            <input
-                                ref={inputRef}
-                                value={newCatName}
-                                onChange={e => setNewCatName(e.target.value)}
-                                onKeyDown={e => { if (e.key === "Enter") handleAddCategory(); if (e.key === "Escape") { setAdding(false); setNewCatName(""); } }}
-                                placeholder="Category name"
-                                className="flex-1 text-xs rounded-lg px-2 py-1 outline-none"
-                                style={{ backgroundColor: "rgba(var(--raw-input-bg),0.8)", color: "var(--color-text-primary)", border: "1px solid rgba(78,222,163,0.25)", minWidth: 0 }}
-                            />
-                            <button
-                                onClick={handleAddCategory}
-                                disabled={saving || !newCatName.trim()}
-                                className="text-xs px-2 py-1 rounded-lg disabled:opacity-40"
-                                style={{ background: "linear-gradient(135deg,#4edea3,#10b981)", color: "#003824", fontWeight: 600 }}
-                            >
-                                {saving ? "…" : "Add"}
+                    {/* search input — doubles as new-category name field */}
+                    <div className="flex items-center gap-2 px-3 py-2.5 border-b shrink-0" style={{ borderColor: "rgba(78,222,163,0.10)" }}>
+                        <Search size={12} style={{ color: "var(--color-text-secondary)", flexShrink: 0 }} />
+                        <input
+                            ref={inputRef}
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            onKeyDown={e => { if (e.key === "Enter" && isNewCategory) handleAddCategory(); if (e.key === "Escape") { setOpen(false); setSearch(""); } }}
+                            placeholder="Search or type a new category…"
+                            className="flex-1 text-xs outline-none bg-transparent"
+                            style={{ color: "var(--color-text-primary)", minWidth: 0 }}
+                        />
+                        {search && (
+                            <button onMouseDown={e => e.preventDefault()} onClick={() => setSearch("")} style={{ color: "var(--color-text-secondary)" }}>
+                                <X size={11} />
                             </button>
+                        )}
+                    </div>
+
+                    {/* add-new-category sits at TOP of results */}
+                    {isNewCategory && (
+                        <div className="px-3 py-2.5 border-b shrink-0" style={{ borderColor: "rgba(78,222,163,0.10)" }}>
+                            <div className="flex items-center justify-between gap-2">
+                                <p className="text-xs flex-1 truncate" style={{ color: "var(--color-text-secondary)" }}>
+                                    Add <span style={{ color: "var(--color-primary)", fontWeight: 600 }}>"{search.trim()}"</span> as new category
+                                </p>
+                                <button
+                                    type="button" onMouseDown={e => e.preventDefault()} onClick={handleAddCategory} disabled={saving}
+                                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold disabled:opacity-40 shrink-0"
+                                    style={{ background: "linear-gradient(135deg,#4edea3,#10b981)", color: "#003824" }}
+                                >
+                                    {saving ? <Loader2 size={11} className="animate-spin" /> : <Plus size={11} />}
+                                    {saving ? "…" : "Add"}
+                                </button>
+                            </div>
                         </div>
                     )}
+
+                    <div className="overflow-y-auto flex-1" style={{ maxHeight: "170px" }}>
+                        <button
+                            className="w-full text-left px-3 py-2 text-xs"
+                            style={{ color: "var(--color-text-secondary)" }}
+                            onClick={() => { onChange(null); setOpen(false); setSearch(""); }}
+                        >
+                            Uncategorized
+                        </button>
+                        {filteredCategories.length === 0 && !isNewCategory && (
+                            <p className="text-xs text-center py-3 px-3" style={{ color: "var(--color-text-secondary)" }}>No categories found.</p>
+                        )}
+                        {filteredCategories.map(cat => (
+                            <button
+                                key={cat.categoryId}
+                                className="w-full text-left px-3 py-2 text-xs"
+                                style={{ color: cat.categoryId === value ? "var(--color-primary)" : "var(--color-text-secondary)" }}
+                                onClick={() => { onChange(cat.categoryId); setOpen(false); setSearch(""); }}
+                            >
+                                {cat.categoryName}
+                            </button>
+                        ))}
+                    </div>
                 </div>
             )}
         </div>
@@ -270,6 +288,7 @@ function ImportStatementModal({ onClose, onSuccess }) {
     const [dragOver,       setDragOver]       = useState(false);
     const [parsing,        setParsing]        = useState(false);
     const [parseError,     setParseError]     = useState(null);
+    const [importUsage,    setImportUsage]    = useState(null); // { today, month }
     const fileInputRef = useRef(null);
 
     const [rows,        setRows]        = useState([]);
@@ -281,7 +300,21 @@ function ImportStatementModal({ onClose, onSuccess }) {
 
     useEffect(() => {
         getAllCategories().then(setCategories).catch(() => setCategories([]));
+        getUserInfo().then(u => setImportUsage({ today: u.importCountToday ?? 0, month: u.importCountMonth ?? 0 })).catch(() => {});
     }, []);
+
+    function friendlyError(err) {
+        const msg = err?.response?.data?.message ?? err?.message ?? "";
+        if (msg.includes("daily") || msg.includes("3 imports")) return { text: "You've reached your daily limit of 3 imports. Come back tomorrow!", icon: "limit" };
+        if (msg.includes("monthly") || msg.includes("10 imports")) return { text: "You've used all 10 monthly imports. Your limit resets next month.", icon: "limit" };
+        if (msg.includes("Only PDF")) return { text: "Only PDF files are supported. Please upload a bank statement in PDF format.", icon: "file" };
+        if (msg.includes("50") && msg.includes("page")) return { text: "Your PDF has too many pages. Please upload a statement with 50 pages or fewer.", icon: "file" };
+        if (msg.includes("overloaded") || msg.includes("503") || msg.includes("529")) return { text: "Our AI service is currently busy. Please wait a moment and try again.", icon: "server" };
+        if (msg.includes("quota") || msg.includes("429")) return { text: "AI usage limit hit. Try again in a few minutes.", icon: "server" };
+        if (msg.includes("Gemini") || msg.includes("parse")) return { text: "We had trouble reading your statement. Try uploading a clearer PDF or a shorter date range.", icon: "parse" };
+        if (msg.includes("FAILED") || msg.includes("Import failed")) return { text: "Something went wrong while processing your statement. Please try again.", icon: "generic" };
+        return { text: "Something went wrong. Please try again or upload a different statement.", icon: "generic" };
+    }
 
     const totalRows          = rows.length;
     const duplicateRows      = rows.filter(r => r.duplicate).length;
@@ -337,8 +370,9 @@ function ImportStatementModal({ onClose, onSuccess }) {
             setRows(enriched);
             setSearchQuery("");
             setScreen("preview");
+            getUserInfo().then(u => setImportUsage({ today: u.importCountToday ?? 0, month: u.importCountMonth ?? 0 })).catch(() => {});
         } catch (err) {
-            setParseError(err?.response?.data?.message ?? err?.message ?? "Failed to parse statement. Please try again.");
+            setParseError(friendlyError(err));
         } finally {
             setParsing(false);
         }
@@ -519,6 +553,41 @@ function ImportStatementModal({ onClose, onSuccess }) {
                             )}
                         </div>
 
+                        {importUsage && (() => {
+                            const dayLeft   = Math.max(0, 3 - importUsage.today);
+                            const monthLeft = Math.max(0, 10 - importUsage.month);
+                            const dayUsedUp   = dayLeft === 0;
+                            const monthUsedUp = monthLeft === 0;
+                            return (
+                                <div className="flex items-center gap-4 px-4 py-3 rounded-xl flex-wrap"
+                                    style={{ backgroundColor: "rgba(var(--raw-input-bg),0.35)", border: "1px solid rgba(78,222,163,0.10)" }}>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Today</span>
+                                        <div className="flex gap-1">
+                                            {[0, 1, 2].map(i => (
+                                                <span key={i} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: i < importUsage.today ? (dayUsedUp ? "#ef4444" : "var(--color-primary)") : "rgba(var(--raw-input-bg),0.9)" }} />
+                                            ))}
+                                        </div>
+                                        <span className="text-xs font-semibold" style={{ color: dayUsedUp ? "#ef4444" : "var(--color-text-primary)" }}>
+                                            {importUsage.today}/3
+                                        </span>
+                                    </div>
+                                    <div className="w-px h-3" style={{ backgroundColor: "rgba(78,222,163,0.15)" }} />
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs" style={{ color: "var(--color-text-secondary)" }}>This month</span>
+                                        <span className="text-xs font-semibold" style={{ color: monthUsedUp ? "#ef4444" : "var(--color-text-primary)" }}>
+                                            {importUsage.month}/10
+                                        </span>
+                                    </div>
+                                    {(dayUsedUp || monthUsedUp) && (
+                                        <span className="text-xs ml-auto" style={{ color: "#ef4444" }}>
+                                            {dayUsedUp ? "Daily limit reached" : "Monthly limit reached"}
+                                        </span>
+                                    )}
+                                </div>
+                            );
+                        })()}
+
 
 
                         <div className="flex items-start gap-3 px-4 py-3.5 rounded-xl" style={{ backgroundColor: "rgba(251,191,36,0.07)", border: "1px solid rgba(251,191,36,0.18)" }}>
@@ -545,9 +614,16 @@ function ImportStatementModal({ onClose, onSuccess }) {
                         </div>
 
                         {parseError && (
-                            <div className="flex items-center gap-2 px-4 py-3 rounded-xl text-xs"
-                                style={{ backgroundColor: "rgba(239,68,68,0.10)", border: "1px solid rgba(239,68,68,0.22)", color: "var(--color-error)" }}>
-                                <AlertTriangle size={13} /> {parseError}
+                            <div className="flex items-start gap-3 px-4 py-3.5 rounded-xl"
+                                style={{ backgroundColor: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.20)" }}>
+                                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: "rgba(239,68,68,0.14)" }}>
+                                    {parseError.icon === "limit"  && <AlertTriangle size={13} style={{ color: "var(--color-error)" }} />}
+                                    {parseError.icon === "file"   && <FileText      size={13} style={{ color: "var(--color-error)" }} />}
+                                    {parseError.icon === "server" && <Loader2       size={13} style={{ color: "var(--color-error)" }} />}
+                                    {parseError.icon === "parse"  && <ShieldAlert   size={13} style={{ color: "var(--color-error)" }} />}
+                                    {parseError.icon === "generic" && <AlertTriangle size={13} style={{ color: "var(--color-error)" }} />}
+                                </div>
+                                <p className="text-xs leading-relaxed pt-0.5" style={{ color: "var(--color-text-primary)" }}>{parseError.text}</p>
                             </div>
                         )}
 

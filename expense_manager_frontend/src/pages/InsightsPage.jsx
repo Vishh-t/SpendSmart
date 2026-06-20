@@ -10,6 +10,7 @@ import {
     getWeeklyDNA, getDailyBurnRate, getMonthlyDelta
 } from "../services/insightsService.js";
 import { renameKeyword, getExpensesByKeyword } from "../services/expenseService.js";
+import CategoryExpensesModal from "../components/modals/CategoryExpensesModal.jsx";
 import { formatCurrency } from "../utils/formatCurrency.js";
 import { useTheme } from "../context/ThemeContext.jsx";
 import {
@@ -155,9 +156,7 @@ function InsightsPage() {
     const [editValue,       setEditValue]       = useState("");
     const [renamingLoading, setRenamingLoading] = useState(false);
 
-    const [merchantModal,        setMerchantModal]        = useState(null);
-    const [merchantExpenses,     setMerchantExpenses]     = useState([]);
-    const [merchantModalLoading, setMerchantModalLoading] = useState(false);
+    const [merchantModal, setMerchantModal] = useState(null);
 
     const [anomMonth, setAnomalyMonth] = useState(now().getMonth() + 1);
     const [anomYear,  setAnomalyYear]  = useState(now().getFullYear());
@@ -171,12 +170,8 @@ function InsightsPage() {
     const yearOpts  = [now().getFullYear(), now().getFullYear() - 1, now().getFullYear() - 2].map(y => ({ value: y, label: String(y) }));
     const dnaOpts   = [{ value: "all", label: "All time" }, { value: 3, label: "3 months" }, { value: 6, label: "6 months" }, { value: 12, label: "12 months" }];
 
-    async function openMerchantModal(keyword) {
+    function openMerchantModal(keyword) {
         setMerchantModal(keyword);
-        setMerchantModalLoading(true);
-        try { setMerchantExpenses(await getExpensesByKeyword(keyword)); }
-        catch { setMerchantExpenses([]); }
-        finally { setMerchantModalLoading(false); }
     }
 
     async function handleRename(oldKeyword) {
@@ -214,8 +209,6 @@ function InsightsPage() {
         : burnRate.status === "EXCEEDED" ? "#ef4444"
         : burnRate.status === "WARNING"  ? "#f59e0b"
         : isDark ? "#4edea3" : "#059669";
-
-    const merchantTotal = merchantExpenses.reduce((s, e) => s + Number(e.amount), 0);
 
     function DnaTooltip({ active, payload, label }) {
         if (!active || !payload?.length) return null;
@@ -485,75 +478,10 @@ function InsightsPage() {
 
             {/* Merchant Drill-Down Modal */}
             {merchantModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center"
-                    style={{ backgroundColor: "rgba(0,0,0,0.75)", backdropFilter: "blur(10px)" }}
-                    onClick={() => setMerchantModal(null)}>
-                    <div className="relative flex flex-col rounded-2xl shadow-2xl"
-                        style={{ backgroundColor: isDark ? "rgba(26,36,56,0.97)" : "rgba(255,255,255,0.97)", border: isDark ? "1px solid rgba(78,222,163,0.15)" : "1px solid rgba(16,185,129,0.20)", width: "min(96vw, 560px)", maxHeight: "72vh", overflow: "hidden" }}
-                        onClick={e => e.stopPropagation()}>
-                        <div className="flex items-center justify-between px-6 py-4 shrink-0"
-                            style={{ background: isDark ? "linear-gradient(135deg,rgba(78,222,163,0.13),rgba(16,185,129,0.07))" : "linear-gradient(135deg,rgba(16,185,129,0.10),rgba(5,150,105,0.04))", borderBottom: isDark ? "1px solid rgba(78,222,163,0.12)" : "1px solid rgba(16,185,129,0.15)" }}>
-                            <div className="flex items-center gap-3">
-                                <div className="w-1 h-7 rounded-full" style={{ background: "linear-gradient(180deg,#4edea3,#10b981)" }}/>
-                                <div>
-                                    <h2 className="text-text-primary font-bold text-sm capitalize">{merchantModal}</h2>
-                                    <p className="text-xs mt-0.5" style={{ color: isDark ? "rgba(136,146,164,0.7)" : "rgba(0,108,73,0.55)" }}>
-                                        {merchantModalLoading ? "Loading…" : `${merchantExpenses.length} transaction${merchantExpenses.length !== 1 ? "s" : ""} · ₹${merchantTotal.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`}
-                                    </p>
-                                </div>
-                            </div>
-                            <button onClick={() => setMerchantModal(null)}
-                                className="w-8 h-8 flex items-center justify-center rounded-lg transition-all text-sm"
-                                style={{ color: isDark ? "#8892a4" : "#4A6358" }}
-                                onMouseEnter={e => { e.currentTarget.style.backgroundColor = "rgba(78,222,163,0.12)"; e.currentTarget.style.color = isDark ? "#4edea3" : "#006C49"; }}
-                                onMouseLeave={e => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = isDark ? "#8892a4" : "#4A6358"; }}>✕</button>
-                        </div>
-                        <div className="overflow-y-auto flex-1" style={{ minHeight: 0 }}>
-                            {merchantModalLoading ? (
-                                <div className="flex items-center justify-center py-16">
-                                    <div className="w-5 h-5 rounded-full border-2 animate-spin" style={{ borderColor: isDark ? "#4edea3" : "#10b981", borderTopColor: "transparent" }}/>
-                                </div>
-                            ) : merchantExpenses.length === 0 ? (
-                                <p className="text-center text-text-secondary text-sm py-16">No expenses found for this merchant.</p>
-                            ) : (
-                                <table className="w-full text-sm">
-                                    <thead className="sticky top-0" style={{ backgroundColor: isDark ? "rgba(26,36,56,0.97)" : "rgba(255,255,255,0.97)", borderBottom: isDark ? "1px solid rgba(78,222,163,0.08)" : "1px solid rgba(16,185,129,0.10)" }}>
-                                        <tr>{["Date","Description","Category","Amount"].map(h => (
-                                            <th key={h} className="text-left px-5 py-3 text-xs font-semibold tracking-widest" style={{ color: isDark ? "#8892a4" : "rgba(0,108,73,0.6)" }}>{h}</th>
-                                        ))}</tr>
-                                    </thead>
-                                    <tbody>
-                                        {merchantExpenses.map(exp => (
-                                            <tr key={exp.expenseId} style={{ borderBottom: isDark ? "1px solid rgba(78,222,163,0.05)" : "1px solid rgba(16,185,129,0.07)" }}>
-                                                <td className="px-5 py-3 text-xs whitespace-nowrap" style={{ color: isDark ? "#8892a4" : "rgba(0,108,73,0.6)", fontFamily: "monospace" }}>
-                                                    {new Date(exp.expenseTimestamp).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
-                                                </td>
-                                                <td className="px-5 py-3 text-text-primary text-xs max-w-[160px] truncate">{exp.description || "—"}</td>
-                                                <td className="px-5 py-3">
-                                                    <span className="text-xs px-2.5 py-1 rounded-full" style={{ backgroundColor: isDark ? "rgba(49,57,77,0.7)" : "rgba(0,108,73,0.08)", color: isDark ? "#8892a4" : "rgba(0,108,73,0.7)" }}>
-                                                        {exp.category?.categoryName || "Uncategorized"}
-                                                    </span>
-                                                </td>
-                                                <td className="px-5 py-3 text-right text-xs font-bold whitespace-nowrap" style={{ color: isDark ? "#4edea3" : "#059669", fontFamily: "monospace" }}>
-                                                    -₹{Number(exp.amount).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            )}
-                        </div>
-                        {!merchantModalLoading && merchantExpenses.length > 0 && (
-                            <div className="flex items-center justify-between px-5 py-3 shrink-0 text-xs"
-                                style={{ borderTop: isDark ? "1px solid rgba(78,222,163,0.10)" : "1px solid rgba(16,185,129,0.12)", backgroundColor: isDark ? "rgba(78,222,163,0.04)" : "rgba(16,185,129,0.04)" }}>
-                                <span style={{ color: isDark ? "#8892a4" : "rgba(0,108,73,0.6)" }}>Total spent on <span className="capitalize font-semibold" style={{ color: "var(--color-text-primary)" }}>{merchantModal}</span></span>
-                                <span style={{ color: isDark ? "#4edea3" : "#059669", fontFamily: "monospace", fontWeight: 700, fontSize: 14 }}>
-                                    -₹{merchantTotal.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
-                                </span>
-                            </div>
-                        )}
-                    </div>
-                </div>
+                <CategoryExpensesModal
+                    keyword={merchantModal}
+                    onClose={() => setMerchantModal(null)}
+                />
             )}
         </div>
     );
