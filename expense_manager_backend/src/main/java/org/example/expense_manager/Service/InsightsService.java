@@ -2,8 +2,10 @@ package org.example.expense_manager.Service;
 
 import lombok.RequiredArgsConstructor;
 import org.example.expense_manager.DTO.ServiceDTOs.*;
+import org.example.expense_manager.Entity.DismissedSubscription;
 import org.example.expense_manager.Entity.Expense;
 import org.example.expense_manager.Entity.User;
+import org.example.expense_manager.Repository.DismissedSubscriptionRepo;
 import org.example.expense_manager.Repository.ExpenseRepo;
 import org.springframework.stereotype.Service;
 
@@ -20,6 +22,7 @@ import java.util.stream.Collectors;
 public class InsightsService
 {
     private final ExpenseRepo expenseRepo;
+    private final DismissedSubscriptionRepo dismissedSubscriptionRepo;
 
 
     public List<AnomalyDTO> anomalyDetector(User user, Integer month, Integer year)
@@ -250,7 +253,36 @@ public class InsightsService
             }
         }
 
-        return recurringExpenses;
+        return filterDismissed(user, recurringExpenses);
+    }
+
+    private List<RecurringExpenseDTO> filterDismissed(User user, List<RecurringExpenseDTO> recurringExpenses)
+    {
+        Set<String> dismissedKeywords = dismissedSubscriptionRepo.findAllByUser(user)
+                .stream()
+                .map(DismissedSubscription::getKeyword)
+                .collect(Collectors.toSet());
+
+        return recurringExpenses.stream()
+                .filter(dto -> !dismissedKeywords.contains(dto.getKeyword()))
+                .collect(Collectors.toList());
+    }
+
+    public void dismissSubscription(User user, String keyword)
+    {
+        if (keyword == null || keyword.isBlank()) return;
+        if (dismissedSubscriptionRepo.existsByUserAndKeyword(user, keyword)) return;
+
+        DismissedSubscription dismissed = new DismissedSubscription();
+        dismissed.setUser(user);
+        dismissed.setKeyword(keyword);
+        dismissedSubscriptionRepo.save(dismissed);
+    }
+
+    public void restoreSubscription(User user, String keyword)
+    {
+        dismissedSubscriptionRepo.findByUserAndKeyword(user, keyword)
+                .ifPresent(dismissedSubscriptionRepo::delete);
     }
 
     public List<WeeklyDNADTO> weeklyDNA(User user, Integer months)

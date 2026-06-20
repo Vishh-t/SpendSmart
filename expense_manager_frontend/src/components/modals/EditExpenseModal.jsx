@@ -120,7 +120,7 @@ function EditExpenseModal({ expense, onClose, onSuccess }) {
             style={{ backgroundColor: "rgba(var(--raw-overlay-bg), 0.75)", backdropFilter: "blur(8px)" }}
         >
             <div
-                className="relative w-full max-w-lg mx-4 rounded-2xl p-8 shadow-2xl flex flex-col gap-6"
+                className="relative w-full max-w-lg mx-3 sm:mx-4 rounded-2xl shadow-2xl flex flex-col overflow-hidden"
                 style={{
                     backgroundColor: "rgba(var(--raw-modal-bg), 0.95)",
                     backdropFilter: "blur(24px)",
@@ -129,7 +129,7 @@ function EditExpenseModal({ expense, onClose, onSuccess }) {
             >
                 {/* ── themed header band ─────────────────────────────────── */}
                 <div
-                    className="flex items-center justify-between px-7 py-5"
+                    className="flex items-center justify-between px-4 sm:px-7 py-4 sm:py-5"
                     style={{
                         background: "linear-gradient(135deg, rgba(78,222,163,0.13) 0%, rgba(16,185,129,0.07) 100%)",
                         borderBottom: "1px solid rgba(78,222,163,0.12)",
@@ -159,10 +159,10 @@ function EditExpenseModal({ expense, onClose, onSuccess }) {
                 </div>
 
                 {/* ── body ──────────────────────────────────────────────── */}
-                <div className="flex flex-col gap-6 px-7 py-6">
+                <div className="flex flex-col gap-5 px-4 sm:px-7 py-5 sm:py-6">
 
-                {/* amount + date */}
-                <div className="flex gap-4">
+                {/* amount + date — stacks on small screens */}
+                <div className="flex flex-col sm:flex-row gap-4">
                     <div className="flex flex-col gap-1.5 flex-1">
                         <label className="text-text-secondary text-xs tracking-widest">AMOUNT (₹)</label>
                         <div className="flex items-center gap-2 rounded-lg px-4 py-3.5"
@@ -174,7 +174,7 @@ function EditExpenseModal({ expense, onClose, onSuccess }) {
                             />
                         </div>
                     </div>
-                    <div className="flex flex-col gap-1.5 relative" style={{ minWidth: "168px" }} ref={calRef}>
+                    <div className="flex flex-col gap-1.5 relative sm:min-w-[168px]" ref={calRef}>
                         <label className="text-text-secondary text-xs tracking-widest">DATE</label>
                         <button type="button" onClick={() => setCalOpen(o => !o)}
                             className="flex items-center justify-between gap-2 rounded-lg px-4 py-3.5 text-sm text-left"
@@ -305,7 +305,7 @@ function EditExpenseModal({ expense, onClose, onSuccess }) {
 
                 {/* ── footer ─────────────────────────────────────────────── */}
                 <div
-                    className="flex items-center justify-between px-7 py-3"
+                    className="flex items-center justify-between px-4 sm:px-7 py-3"
                     style={{
                         borderTop: "1px solid rgba(78,222,163,0.08)",
                         background: "linear-gradient(135deg, rgba(78,222,163,0.04) 0%, rgba(16,185,129,0.02) 100%)",
@@ -319,7 +319,7 @@ function EditExpenseModal({ expense, onClose, onSuccess }) {
                             opacity: 0.55,
                         }}
                     >
-                        SpendSmart · Precision Ledger
+                        Expenzo · Precision Ledger
                     </span>
                     <span
                         className="text-xs"

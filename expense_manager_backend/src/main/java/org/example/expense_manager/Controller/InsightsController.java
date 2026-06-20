@@ -38,6 +38,22 @@ public class InsightsController
         return new ResponseEntity<>(service.subscriptionTracker(loggedinUser), HttpStatus.OK);
     }
 
+    @PostMapping("/dismissSubscription")
+    public ResponseEntity<?> dismissSubscription(@RequestParam String keyword)
+    {
+        User loggedinUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
+        service.dismissSubscription(loggedinUser, keyword);
+        return new ResponseEntity<>(HttpStatus.OK);
+    }
+
+    @DeleteMapping("/dismissSubscription")
+    public ResponseEntity<?> restoreSubscription(@RequestParam String keyword)
+    {
+        User loggedinUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
+        service.restoreSubscription(loggedinUser, keyword);
+        return new ResponseEntity<>(HttpStatus.OK);
+    }
+
     @GetMapping("/weeklyDNA")
     public ResponseEntity<?> weeklyDNA(@RequestParam(required = false) Integer months)
     {

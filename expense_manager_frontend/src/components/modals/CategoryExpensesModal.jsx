@@ -31,16 +31,16 @@ function RangeDateField({ label, value, onChange, maxDate }) {
     }
 
     return (
-        <div className="relative" ref={ref}>
+        <div className="relative flex-1 sm:flex-none" ref={ref}>
             <button
                 onClick={() => setOpen(o => !o)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs w-full sm:w-auto justify-center sm:justify-start"
                 style={{
                     backgroundColor: "rgba(var(--raw-input-bg), 0.7)",
                     color: parts ? "var(--color-text-primary)" : "var(--color-text-secondary)",
                     fontFamily: "'Berkeley Mono','Courier New',monospace",
                     border: "1px solid rgba(78,222,163,0.10)",
-                    minWidth: "118px",
+                    minWidth: "0",
                 }}
             >
                 <CalendarRange size={12} style={{ color: "var(--color-text-secondary)", flexShrink: 0 }} />
@@ -121,35 +121,35 @@ function CategoryExpensesModal({ category, keyword, onClose }) {
             onClick={onClose}
         >
             <div
-                className="relative w-full max-w-2xl mx-4 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+                className="relative w-full max-w-2xl mx-3 sm:mx-4 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
                 style={{
                     backgroundColor: "rgba(var(--raw-modal-bg), 0.95)",
                     backdropFilter: "blur(24px)",
                     border: "1px solid rgba(78, 222, 163, 0.15)",
-                    maxHeight: "82vh",
+                    maxHeight: "85vh",
                 }}
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
                 <div
-                    className="flex items-center justify-between px-6 py-5 shrink-0"
+                    className="flex items-center justify-between px-4 sm:px-6 py-4 sm:py-5 shrink-0 gap-3"
                     style={{
                         background: "linear-gradient(135deg, rgba(78,222,163,0.13) 0%, rgba(16,185,129,0.07) 100%)",
                         borderBottom: "1px solid rgba(78,222,163,0.12)",
                     }}
                 >
-                    <div className="flex items-center gap-3">
-                        <div className="w-1 h-8 rounded-full" style={{ background: "linear-gradient(180deg,#4edea3,#10b981)" }} />
-                        <div>
-                            <h2 className="text-text-primary font-semibold text-base leading-tight capitalize">{title}</h2>
-                            <p className="text-text-secondary text-xs mt-0.5">
-                                {hasRange ? `${expenses.length} of ${allExpenses.length} expenses · filtered by date` : subtitleIdle}
+                    <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-1 h-8 rounded-full shrink-0" style={{ background: "linear-gradient(180deg,#4edea3,#10b981)" }} />
+                        <div className="min-w-0">
+                            <h2 className="text-text-primary font-semibold text-sm sm:text-base leading-tight capitalize truncate">{title}</h2>
+                            <p className="text-text-secondary text-xs mt-0.5 truncate">
+                                {hasRange ? `${expenses.length} of ${allExpenses.length} expenses · filtered` : subtitleIdle}
                             </p>
                         </div>
                     </div>
                     <button
                         onClick={onClose}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg transition-all"
+                        className="w-8 h-8 flex items-center justify-center rounded-lg transition-all shrink-0"
                         style={{ color: "var(--color-text-secondary)" }}
                         onMouseEnter={e => { e.currentTarget.style.backgroundColor = "rgba(78,222,163,0.12)"; e.currentTarget.style.color = "var(--color-primary)"; }}
                         onMouseLeave={e => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = "var(--color-text-secondary)"; }}
@@ -159,16 +159,18 @@ function CategoryExpensesModal({ category, keyword, onClose }) {
                 </div>
 
                 {/* Date range bar */}
-                <div className="flex items-center gap-3 px-6 py-3.5 shrink-0 flex-wrap"
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-4 sm:px-6 py-3 sm:py-3.5 shrink-0"
                     style={{ borderBottom: "1px solid rgba(78,222,163,0.08)", backgroundColor: "rgba(var(--raw-card-bg),0.4)" }}>
-                    <span className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Filter range</span>
-                    <RangeDateField label="From" value={startDate} onChange={setStartDate} maxDate={maxDate} />
-                    <span className="text-xs" style={{ color: "var(--color-text-secondary)" }}>to</span>
-                    <RangeDateField label="To" value={endDate} onChange={setEndDate} maxDate={maxDate} />
+                    <span className="text-xs hidden sm:inline" style={{ color: "var(--color-text-secondary)" }}>Filter range</span>
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <RangeDateField label="From" value={startDate} onChange={setStartDate} maxDate={maxDate} />
+                        <span className="text-xs shrink-0" style={{ color: "var(--color-text-secondary)" }}>to</span>
+                        <RangeDateField label="To" value={endDate} onChange={setEndDate} maxDate={maxDate} />
+                    </div>
                     {hasRange && (
                         <button
                             onClick={() => { setStartDate(""); setEndDate(""); }}
-                            className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg transition-all"
+                            className="flex items-center justify-center gap-1 text-xs px-2.5 py-1.5 rounded-lg transition-all shrink-0"
                             style={{ color: "var(--color-text-secondary)", backgroundColor: "rgba(var(--raw-input-bg),0.6)" }}
                             onMouseEnter={e => e.currentTarget.style.color = "var(--color-primary)"}
                             onMouseLeave={e => e.currentTarget.style.color = "var(--color-text-secondary)"}
@@ -178,7 +180,7 @@ function CategoryExpensesModal({ category, keyword, onClose }) {
                     )}
                 </div>
 
-                <div className="px-6 py-5 flex flex-col flex-1" style={{ minHeight: 0 }}>
+                <div className="px-4 sm:px-6 py-4 sm:py-5 flex flex-col flex-1" style={{ minHeight: 0 }}>
 
                 {isLoading ? (
                     <p className="text-text-secondary text-sm text-center py-8">Loading...</p>
@@ -189,55 +191,78 @@ function CategoryExpensesModal({ category, keyword, onClose }) {
                         {hasRange ? "No expenses in this date range." : "No expenses found."}
                     </p>
                 ) : (
-                        <div className="flex flex-col flex-1" style={{ minHeight: 0 }}>
-                        {/* sticky header */}
-                        <table className="w-full" style={{ tableLayout: "fixed" }}>
-                            <colgroup>
-                                <col style={{ width: isMerchantMode ? "38%" : "50%" }} />
-                                {isMerchantMode && <col style={{ width: "22%" }} />}
-                                <col style={{ width: isMerchantMode ? "18%" : "22%" }} />
-                                <col style={{ width: isMerchantMode ? "22%" : "28%" }} />
-                            </colgroup>
-                            <thead>
-                                <tr className="text-text-secondary text-xs tracking-widest border-b border-surface-bright/40">
-                                    <th className="text-left pb-3 font-medium">DESCRIPTION</th>
-                                    {isMerchantMode && <th className="text-left pb-3 font-medium">CATEGORY</th>}
-                                    <th className="text-right pb-3 font-medium">AMOUNT</th>
-                                    <th className="text-right pb-3 font-medium">DATE</th>
-                                </tr>
-                            </thead>
-                        </table>
+                    <div className="flex flex-col flex-1" style={{ minHeight: 0 }}>
 
-                        {/* scrollable body */}
-                        <div className="overflow-y-auto flex-1" style={{ marginRight: "-6px", paddingRight: "6px" }}>
-                            <table className="w-full border-separate" style={{ tableLayout: "fixed", borderSpacing: "0 6px" }}>
+                        {/* ── Desktop table (sm and up) ── */}
+                        <div className="hidden sm:flex sm:flex-col flex-1" style={{ minHeight: 0 }}>
+                            <table className="w-full" style={{ tableLayout: "fixed" }}>
                                 <colgroup>
                                     <col style={{ width: isMerchantMode ? "38%" : "50%" }} />
                                     {isMerchantMode && <col style={{ width: "22%" }} />}
                                     <col style={{ width: isMerchantMode ? "18%" : "22%" }} />
                                     <col style={{ width: isMerchantMode ? "22%" : "28%" }} />
                                 </colgroup>
-                                <tbody>
-                                    {expenses.map((expense) => (
-                                        <tr key={expense.expenseId} className="transition-all"
-                                            style={{ backgroundColor: "rgba(var(--raw-input-bg), 0.35)" }}
-                                            onMouseEnter={e => e.currentTarget.style.backgroundColor = "rgba(var(--raw-input-bg), 0.55)"}
-                                            onMouseLeave={e => e.currentTarget.style.backgroundColor = "rgba(var(--raw-input-bg), 0.35)"}
-                                        >
-                                            <td className="py-3 pl-3 pr-3 text-text-primary text-sm truncate rounded-l-lg">{expense.description || "—"}</td>
-                                            {isMerchantMode && (
-                                                <td className="py-3 pr-3">
-                                                    <span className="text-xs px-2.5 py-1 rounded-full" style={{ backgroundColor: "var(--color-surface-low)", color: "var(--color-text-secondary)" }}>
-                                                        {expense.category?.categoryName || "Uncategorized"}
-                                                    </span>
-                                                </td>
-                                            )}
-                                            <td className="py-3 text-right text-text-primary text-sm font-medium">-₹{formatCurrency(expense.amount)}</td>
-                                            <td className="py-3 pr-3 text-right text-text-secondary text-xs rounded-r-lg">{formatDate(expense.expenseTimestamp)}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
+                                <thead>
+                                    <tr className="text-text-secondary text-xs tracking-widest border-b border-surface-bright/40">
+                                        <th className="text-left pb-3 font-medium">DESCRIPTION</th>
+                                        {isMerchantMode && <th className="text-left pb-3 font-medium">CATEGORY</th>}
+                                        <th className="text-right pb-3 font-medium">AMOUNT</th>
+                                        <th className="text-right pb-3 font-medium">DATE</th>
+                                    </tr>
+                                </thead>
                             </table>
+
+                            <div className="overflow-y-auto flex-1" style={{ marginRight: "-6px", paddingRight: "6px" }}>
+                                <table className="w-full border-separate" style={{ tableLayout: "fixed", borderSpacing: "0 6px" }}>
+                                    <colgroup>
+                                        <col style={{ width: isMerchantMode ? "38%" : "50%" }} />
+                                        {isMerchantMode && <col style={{ width: "22%" }} />}
+                                        <col style={{ width: isMerchantMode ? "18%" : "22%" }} />
+                                        <col style={{ width: isMerchantMode ? "22%" : "28%" }} />
+                                    </colgroup>
+                                    <tbody>
+                                        {expenses.map((expense) => (
+                                            <tr key={expense.expenseId} className="transition-all"
+                                                style={{ backgroundColor: "rgba(var(--raw-input-bg), 0.35)" }}
+                                                onMouseEnter={e => e.currentTarget.style.backgroundColor = "rgba(var(--raw-input-bg), 0.55)"}
+                                                onMouseLeave={e => e.currentTarget.style.backgroundColor = "rgba(var(--raw-input-bg), 0.35)"}
+                                            >
+                                                <td className="py-3 pl-3 pr-3 text-text-primary text-sm truncate rounded-l-lg">{expense.description || "—"}</td>
+                                                {isMerchantMode && (
+                                                    <td className="py-3 pr-3">
+                                                        <span className="text-xs px-2.5 py-1 rounded-full" style={{ backgroundColor: "var(--color-surface-low)", color: "var(--color-text-secondary)" }}>
+                                                            {expense.category?.categoryName || "Uncategorized"}
+                                                        </span>
+                                                    </td>
+                                                )}
+                                                <td className="py-3 text-right text-text-primary text-sm font-medium">-₹{formatCurrency(expense.amount)}</td>
+                                                <td className="py-3 pr-3 text-right text-text-secondary text-xs rounded-r-lg">{formatDate(expense.expenseTimestamp)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        {/* ── Mobile card list (below sm) ── */}
+                        <div className="flex sm:hidden flex-col gap-2 overflow-y-auto flex-1" style={{ minHeight: 0 }}>
+                            {expenses.map((expense) => (
+                                <div key={expense.expenseId} className="flex items-start justify-between gap-3 rounded-xl px-3 py-2.5"
+                                    style={{ backgroundColor: "rgba(var(--raw-input-bg), 0.35)" }}>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-text-primary text-sm truncate">{expense.description || "—"}</p>
+                                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                            {isMerchantMode && (
+                                                <span className="text-[10px] px-2 py-0.5 rounded-full shrink-0" style={{ backgroundColor: "var(--color-surface-low)", color: "var(--color-text-secondary)" }}>
+                                                    {expense.category?.categoryName || "Uncategorized"}
+                                                </span>
+                                            )}
+                                            <span className="text-text-secondary text-[10px] shrink-0">{formatDate(expense.expenseTimestamp)}</span>
+                                        </div>
+                                    </div>
+                                    <span className="text-text-primary text-sm font-semibold shrink-0">-₹{formatCurrency(expense.amount)}</span>
+                                </div>
+                            ))}
                         </div>
 
                         {/* footer total */}

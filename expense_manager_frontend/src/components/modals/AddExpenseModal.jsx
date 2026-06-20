@@ -321,7 +321,7 @@ function AddExpenseModal({ onClose, onSuccess }) {
                             opacity: 0.55,
                         }}
                     >
-                        SpendSmart · Precision Ledger
+                        Expenzo · Precision Ledger
                     </span>
                     <span
                         className="text-xs"

@@ -3,7 +3,7 @@ import { useData } from "../context/DataContext.jsx";
 import {
     AlertTriangle, TrendingUp, Minus, Repeat2,
     Flame, Trophy, Zap, Info,
-    ArrowUpRight, ArrowDownRight, Sparkles, Activity, ChevronDown
+    ArrowUpRight, ArrowDownRight, Sparkles, Activity, ChevronDown, X
 } from "lucide-react";
 import {
     getAnomalies, getMerchantLeaderboard, getSubscriptionTracker,
@@ -155,8 +155,15 @@ function InsightsPage() {
     const [editingKeyword,  setEditingKeyword]  = useState(null);
     const [editValue,       setEditValue]       = useState("");
     const [renamingLoading, setRenamingLoading] = useState(false);
+    const [dismissedKeywords, setDismissedKeywords] = useState(() => {
+        try {
+            const stored = localStorage.getItem("dismissedSubscriptions");
+            return stored ? new Set(JSON.parse(stored)) : new Set();
+        } catch { return new Set(); }
+    });
 
     const [merchantModal, setMerchantModal] = useState(null);
+    const [showDismissed, setShowDismissed] = useState(false);
 
     const [anomMonth, setAnomalyMonth] = useState(now().getMonth() + 1);
     const [anomYear,  setAnomalyYear]  = useState(now().getFullYear());
@@ -172,6 +179,24 @@ function InsightsPage() {
 
     function openMerchantModal(keyword) {
         setMerchantModal(keyword);
+    }
+
+    function dismissSubscription(keyword) {
+        setDismissedKeywords(prev => {
+            const next = new Set(prev);
+            next.add(keyword);
+            try { localStorage.setItem("dismissedSubscriptions", JSON.stringify(Array.from(next))); } catch {}
+            return next;
+        });
+    }
+
+    function restoreSubscription(keyword) {
+        setDismissedKeywords(prev => {
+            const next = new Set(prev);
+            next.delete(keyword);
+            try { localStorage.setItem("dismissedSubscriptions", JSON.stringify(Array.from(next))); } catch {}
+            return next;
+        });
     }
 
     async function handleRename(oldKeyword) {
@@ -209,6 +234,9 @@ function InsightsPage() {
         : burnRate.status === "EXCEEDED" ? "#ef4444"
         : burnRate.status === "WARNING"  ? "#f59e0b"
         : isDark ? "#4edea3" : "#059669";
+
+    const visibleSubscriptions   = subscriptions.filter(s => !dismissedKeywords.has(s.keyword));
+    const dismissedSubscriptions = subscriptions.filter(s => dismissedKeywords.has(s.keyword));
 
     function DnaTooltip({ active, payload, label }) {
         if (!active || !payload?.length) return null;
@@ -411,11 +439,11 @@ function InsightsPage() {
                                     onMouseEnter={e => e.currentTarget.style.border = isDark ? "1px solid rgba(78,222,163,0.20)" : "1px solid rgba(16,185,129,0.25)"}
                                     onMouseLeave={e => e.currentTarget.style.border = isDark ? "1px solid rgba(78,222,163,0.04)" : "1px solid rgba(16,185,129,0.08)"}>
                                     <span className="font-black text-xs w-5 text-center shrink-0" style={{ color: i === 0 ? "#f59e0b" : i === 1 ? "#94a3b8" : i === 2 ? "#b45309" : isDark ? "#4b5563" : "#9ca3af" }}>#{m.rank}</span>
-                                    <span className="text-text-primary text-sm font-medium flex-1 truncate capitalize">{m.keyword}</span>
-                                    <div className="w-16 h-1.5 rounded-full shrink-0" style={{ background: isDark ? "rgba(49,57,77,0.8)" : "rgba(16,185,129,0.10)" }}>
+                                    <span className="text-text-primary text-sm font-medium flex-1 truncate capitalize min-w-0">{m.keyword}</span>
+                                    <div className="hidden lg:block w-16 h-1.5 rounded-full shrink-0" style={{ background: isDark ? "rgba(49,57,77,0.8)" : "rgba(16,185,129,0.10)" }}>
                                         <div className="h-1.5 rounded-full" style={{ width: `${Number(m.percentage)}%`, background: isDark ? "linear-gradient(90deg,#4edea3,#10b981)" : "linear-gradient(90deg,#10b981,#059669)" }}/>
                                     </div>
-                                    <span className="text-xs shrink-0 w-9 text-right" style={{ color: isDark ? "#8892a4" : "rgba(0,108,73,0.55)" }}>{Number(m.percentage).toFixed(1)}%</span>
+                                    <span className="text-xs shrink-0" style={{ color: isDark ? "#8892a4" : "rgba(0,108,73,0.55)" }}>{Number(m.percentage).toFixed(1)}%</span>
                                     <span className="text-sm font-bold shrink-0 text-text-primary">₹{formatCurrency(m.totalSpent)}</span>
                                 </div>
                             ))
@@ -424,17 +452,41 @@ function InsightsPage() {
                 </Card>
 
                 <Card isDark={isDark}>
-                    <CardHeader icon={<Repeat2 size={15}/>} title="Recurring Tracker" subtitle="Auto-detected monthly subscriptions" isDark={isDark}/>
+                    <CardHeader icon={<Repeat2 size={15}/>} title="Recurring Tracker" subtitle="Auto-detected monthly subscriptions · remove if wrongly flagged" isDark={isDark}
+                        action={dismissedSubscriptions.length > 0 && (
+                            <button onClick={() => setShowDismissed(v => !v)}
+                                className="text-xs font-semibold px-2.5 py-1 rounded-lg transition-all"
+                                style={{ color: isDark ? "rgba(136,146,164,0.8)" : "rgba(0,108,73,0.6)", background: isDark ? "rgba(49,57,77,0.6)" : "rgba(16,185,129,0.06)" }}>
+                                {showDismissed ? "Hide" : "Show"} removed ({dismissedSubscriptions.length})
+                            </button>
+                        )}/>
+
+                    {showDismissed && dismissedSubscriptions.length > 0 && (
+                        <div className="flex flex-col gap-1.5 pb-2" style={{ borderBottom: isDark ? "1px solid rgba(78,222,163,0.10)" : "1px solid rgba(16,185,129,0.12)" }}>
+                            {dismissedSubscriptions.map((s, i) => (
+                                <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg"
+                                    style={{ background: isDark ? "rgba(49,57,77,0.25)" : "rgba(16,185,129,0.03)", opacity: 0.75 }}>
+                                    <span className="text-text-secondary text-xs truncate">{s.keyword}</span>
+                                    <button onClick={() => restoreSubscription(s.keyword)}
+                                        className="text-xs font-semibold px-2 py-0.5 rounded-md shrink-0 transition-all"
+                                        style={{ color: isDark ? "#4edea3" : "#059669", background: isDark ? "rgba(78,222,163,0.10)" : "rgba(16,185,129,0.08)" }}>
+                                        Restore
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
                     <div className="flex flex-col gap-2 overflow-y-auto pr-0.5" style={{ maxHeight: "220px" }}>
                         {loadingSubs
                             ? [1,2,3].map(i => <Pulse key={i} isDark={isDark} h="h-14"/>)
-                            : subscriptions.length === 0
-                            ? <EmptyState icon={<Repeat2 size={22}/>} text="No recurring expenses detected yet." isDark={isDark}/>
-                            : subscriptions.map((s, i) => {
+                            : visibleSubscriptions.length === 0
+                            ? <EmptyState icon={<Repeat2 size={22}/>} text={subscriptions.length === 0 ? "No recurring expenses detected yet." : "All detected subscriptions removed."} isDark={isDark}/>
+                            : visibleSubscriptions.map((s, i) => {
                                 const daysUntilNext = Math.ceil((new Date(s.nextExpectedChargeDate) - new Date()) / 86400000);
                                 const isDue = daysUntilNext >= 0 && daysUntilNext <= 5;
                                 return (
-                                    <div key={i} className="rounded-xl px-3 py-3"
+                                    <div key={i} className="group rounded-xl px-3 py-3"
                                         style={{ background: isDark ? "rgba(49,57,77,0.40)" : "rgba(16,185,129,0.04)", border: isDue ? "1px solid rgba(245,158,11,0.35)" : isDark ? "1px solid rgba(78,222,163,0.06)" : "1px solid rgba(16,185,129,0.10)" }}>
                                         <div className="flex items-start justify-between gap-2">
                                             <div className="min-w-0 flex-1">
@@ -457,9 +509,18 @@ function InsightsPage() {
                                                 </div>
                                                 <p className="text-xs mt-0.5 truncate" style={{ color: isDark ? "rgba(136,146,164,0.65)" : "rgba(0,108,73,0.50)" }}>Every ~{s.averageGap}d · Next: {s.nextExpectedChargeDate}</p>
                                             </div>
-                                            <div className="text-right shrink-0">
-                                                <p className="text-text-primary font-bold text-sm">₹{formatCurrency(s.averageAmount)}/mo</p>
-                                                <p className="text-xs" style={{ color: isDark ? "rgba(136,146,164,0.65)" : "rgba(0,108,73,0.50)" }}>₹{formatCurrency(s.annualCost)}/yr</p>
+                                            <div className="flex items-start gap-2 shrink-0">
+                                                <div className="text-right">
+                                                    <p className="text-text-primary font-bold text-sm">₹{formatCurrency(s.averageAmount)}/mo</p>
+                                                    <p className="text-xs" style={{ color: isDark ? "rgba(136,146,164,0.65)" : "rgba(0,108,73,0.50)" }}>₹{formatCurrency(s.annualCost)}/yr</p>
+                                                </div>
+                                                <button onClick={() => dismissSubscription(s.keyword)} title="Not a real subscription? Remove it"
+                                                    className="w-6 h-6 flex items-center justify-center rounded-lg shrink-0 transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                                                    style={{ color: isDark ? "rgba(136,146,164,0.7)" : "rgba(0,108,73,0.5)", background: "transparent" }}
+                                                    onMouseEnter={e => { e.currentTarget.style.background = "rgba(239,68,68,0.12)"; e.currentTarget.style.color = "#ef4444"; }}
+                                                    onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = isDark ? "rgba(136,146,164,0.7)" : "rgba(0,108,73,0.5)"; }}>
+                                                    <X size={13} />
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -467,10 +528,10 @@ function InsightsPage() {
                             })
                         }
                     </div>
-                    {subscriptions.length > 0 && (
+                    {visibleSubscriptions.length > 0 && (
                         <div className="flex items-center justify-between px-3 py-2.5 rounded-xl mt-auto" style={{ background: isDark ? "rgba(78,222,163,0.07)" : "rgba(16,185,129,0.07)", border: isDark ? "1px solid rgba(78,222,163,0.12)" : "1px solid rgba(16,185,129,0.15)" }}>
                             <span className="text-xs font-semibold" style={{ color: isDark ? "rgba(136,146,164,0.8)" : "rgba(0,108,73,0.7)" }}>Total annual commitment</span>
-                            <span className="font-black text-base" style={{ color: isDark ? "#4edea3" : "#059669" }}>₹{formatCurrency(subscriptions.reduce((s, r) => s + Number(r.annualCost), 0))}</span>
+                            <span className="font-black text-base" style={{ color: isDark ? "#4edea3" : "#059669" }}>₹{formatCurrency(visibleSubscriptions.reduce((s, r) => s + Number(r.annualCost), 0))}</span>
                         </div>
                     )}
                 </Card>
