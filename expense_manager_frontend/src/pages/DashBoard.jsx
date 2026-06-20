@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Clock, AlertTriangle } from "lucide-react";
+import { Clock, AlertTriangle, Sparkles, X } from "lucide-react";
 import { getDashboardSummary } from "../services/expenseService.js";
 import { formatCurrency } from "../utils/formatCurrency.js";
 import { ErrorState, DashboardSkeleton } from "../components/ui/PageState.jsx";
@@ -17,6 +17,7 @@ function DashBoard() {
     const [isLoading,        setIsLoading]        = useState(true);
     const [error,            setError]            = useState(null);
     const [selectedYear,     setSelectedYear]     = useState(new Date().getFullYear());
+    const [showWelcome,      setShowWelcome]      = useState(localStorage.getItem("welcomeBannerDismissed") !== "true");
 
     const { refreshKey } = useData();
 
@@ -43,6 +44,13 @@ function DashBoard() {
     if (isLoading) return <DashboardSkeleton />;
     if (error)     return <ErrorState message={error} />;
 
+    const isNewAccount = (financialSummary?.transactionCount ?? 0) === 0;
+
+    function dismissWelcome() {
+        localStorage.setItem("welcomeBannerDismissed", "true");
+        setShowWelcome(false);
+    }
+
     const budgetPercent = ((budgetStatus?.spent / budgetStatus?.budget) * 100).toFixed(1);
 
     return (
@@ -56,6 +64,36 @@ function DashBoard() {
                     Updated: {new Date().toLocaleString()}
                 </p>
             </div>
+
+            {/* Welcome banner — shown once for brand-new accounts with no expenses yet */}
+            {isNewAccount && showWelcome && (
+                <div
+                    className="flex items-start md:items-center justify-between gap-3 px-4 py-3.5 rounded-xl"
+                    style={{
+                        background: "linear-gradient(135deg, rgba(78,222,163,0.12) 0%, rgba(16,185,129,0.06) 100%)",
+                        border: "1px solid rgba(78,222,163,0.20)",
+                    }}
+                >
+                    <div className="flex items-start gap-3">
+                        <Sparkles size={16} style={{ color: "var(--color-primary)", flexShrink: 0, marginTop: "2px" }} />
+                        <div>
+                            <p className="text-text-primary text-sm font-semibold">Welcome to Expenzo!</p>
+                            <p className="text-text-secondary text-xs mt-0.5">
+                                Start by creating a few categories, then add an expense or import a bank statement to see your dashboard come alive.
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={dismissWelcome}
+                        className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg transition-all"
+                        style={{ color: "var(--color-text-secondary)" }}
+                        onMouseEnter={e => { e.currentTarget.style.backgroundColor = "rgba(78,222,163,0.12)"; e.currentTarget.style.color = "var(--color-primary)"; }}
+                        onMouseLeave={e => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = "var(--color-text-secondary)"; }}
+                    >
+                        <X size={14} />
+                    </button>
+                </div>
+            )}
 
             {/* Budget Alert */}
             {budgetStatus?.warning && (

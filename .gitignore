@@ -10,3 +10,6 @@ Thumbs.db
 
 # Reference designs — not part of the project
 website_designs/
+
+# Secrets — never commit real credentials
+expense_manager_backend/src/main/resources/application.properties
