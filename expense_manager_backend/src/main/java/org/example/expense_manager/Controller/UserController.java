@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.example.expense_manager.DTO.ControllerDTOs.LoginDTO;
 import org.example.expense_manager.DTO.ControllerDTOs.SignUpDTO;
 import org.example.expense_manager.Entity.User;
+import org.example.expense_manager.Service.GoogleAuthService;
 import org.example.expense_manager.Service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +22,7 @@ import java.util.Objects;
 public class UserController
 {
     private final UserService service;
+    private final GoogleAuthService googleAuthService;
 
     @PostMapping("/signUp")
     public ResponseEntity<?> signUp(@Valid @RequestBody SignUpDTO signUpDto)
@@ -53,6 +55,13 @@ public class UserController
     {
         User loggedInUser = (User) Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
         return new ResponseEntity<>(service.deleteUser(loggedInUser), HttpStatus.OK);
+    }
+
+    @PostMapping("/auth/google")
+    public ResponseEntity<?> googleAuth(
+            @RequestParam String code,
+            @RequestParam String redirectUri) throws java.io.IOException {
+        return new ResponseEntity<>(googleAuthService.authenticateWithGoogle(code, redirectUri), HttpStatus.OK);
     }
 
 }

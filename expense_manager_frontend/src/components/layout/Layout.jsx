@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { Plus, Moon, Sun, FileUp, Menu } from "lucide-react";
+import { Plus, Moon, Sun, FileUp, Menu, AlertCircle } from "lucide-react";
 import SideBar from "./SideBar.jsx";
 import AddExpenseModal from "../modals/AddExpenseModal.jsx";
 import ImportStatementModal from "../modals/ImportStatementModal.jsx";
+import { getAllCategories } from "../../services/categoryService.js";
 import { useTheme } from "../../context/ThemeContext.jsx";
 import { useData } from "../../context/DataContext.jsx";
 
@@ -19,14 +20,37 @@ function useIsMobile() {
 function Layout({ children }) {
     const [showAddExpense,   setShowAddExpense]   = useState(false);
     const [showImport,       setShowImport]       = useState(false);
+    const [hasCategories,    setHasCategories]    = useState(true); // assume true until checked — avoids flashing disabled on load
+    const [showImportWarning, setShowImportWarning] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [mobileMenuOpen,   setMobileMenuOpen]   = useState(false);
     const { isDark, toggleTheme } = useTheme();
-    const { triggerRefresh } = useData();
+    const { triggerRefresh, refreshKey } = useData();
     const isMobile = useIsMobile();
+
+    useEffect(() => {
+        getAllCategories()
+            .then(cats => setHasCategories((cats?.length ?? 0) > 0))
+            .catch(err => {
+                if (err.response?.status === 404) {
+                    setHasCategories(false); // backend throws NotFoundException when a user has zero categories
+                } else {
+                    console.error("Failed to fetch categories for import-button check:", err);
+                }
+            });
+    }, [refreshKey]);
 
     function handleExpenseSuccess() { setShowAddExpense(false); triggerRefresh(); }
     function handleImportSuccess()  { triggerRefresh(); }
+
+    function handleImportClick() {
+        if (!hasCategories) {
+            setShowImportWarning(true);
+            setTimeout(() => setShowImportWarning(false), 3500);
+            return;
+        }
+        setShowImport(true);
+    }
 
     const sidebarW = sidebarCollapsed ? 64 : 224;
     const marginLeft = isMobile ? 0 : sidebarW;
@@ -107,20 +131,41 @@ function Layout({ children }) {
                         </button>
 
                         {/* Import Statement — icon only on mobile */}
-                        <button
-                            onClick={() => setShowImport(true)}
-                            className="flex items-center gap-2 px-3 md:px-4 py-2 rounded-lg text-sm font-semibold transition-all"
-                            style={{
-                                backgroundColor: isDark ? "rgba(49,57,77,0.7)" : "rgba(0,108,73,0.08)",
-                                color: isDark ? "#8892a4" : "#4A6358",
-                                border: isDark ? "1px solid rgba(78,222,163,0.15)" : "1px solid rgba(0,108,73,0.15)",
-                            }}
-                            onMouseEnter={e => { e.currentTarget.style.backgroundColor = isDark ? "rgba(78,222,163,0.10)" : "rgba(0,108,73,0.14)"; e.currentTarget.style.color = isDark ? "#4edea3" : "#006C49"; }}
-                            onMouseLeave={e => { e.currentTarget.style.backgroundColor = isDark ? "rgba(49,57,77,0.7)" : "rgba(0,108,73,0.08)"; e.currentTarget.style.color = isDark ? "#8892a4" : "#4A6358"; }}
-                        >
-                            <FileUp size={14} />
-                            <span className="hidden sm:inline">Import Statement</span>
-                        </button>
+                        <div className="relative">
+                            <button
+                                onClick={handleImportClick}
+                                className="flex items-center gap-2 px-3 md:px-4 py-2 rounded-lg text-sm font-semibold transition-all"
+                                style={{
+                                    backgroundColor: isDark ? "rgba(49,57,77,0.7)" : "rgba(0,108,73,0.08)",
+                                    color: hasCategories ? (isDark ? "#8892a4" : "#4A6358") : (isDark ? "rgba(136,146,164,0.35)" : "rgba(74,99,88,0.35)"),
+                                    border: isDark ? "1px solid rgba(78,222,163,0.15)" : "1px solid rgba(0,108,73,0.15)",
+                                    cursor: hasCategories ? "pointer" : "not-allowed",
+                                    opacity: hasCategories ? 1 : 0.55,
+                                }}
+                                onMouseEnter={e => { if (hasCategories) { e.currentTarget.style.backgroundColor = isDark ? "rgba(78,222,163,0.10)" : "rgba(0,108,73,0.14)"; e.currentTarget.style.color = isDark ? "#4edea3" : "#006C49"; } }}
+                                onMouseLeave={e => { e.currentTarget.style.backgroundColor = isDark ? "rgba(49,57,77,0.7)" : "rgba(0,108,73,0.08)"; e.currentTarget.style.color = hasCategories ? (isDark ? "#8892a4" : "#4A6358") : (isDark ? "rgba(136,146,164,0.35)" : "rgba(74,99,88,0.35)"); }}
+                            >
+                                <FileUp size={14} />
+                                <span className="hidden sm:inline">Import Statement</span>
+                            </button>
+
+                            {showImportWarning && (
+                                <div
+                                    className="absolute top-full right-0 mt-2 z-50 flex items-start gap-2 px-3.5 py-2.5 rounded-xl shadow-lg"
+                                    style={{
+                                        width: "220px",
+                                        backgroundColor: "rgba(var(--raw-modal-bg), 0.98)",
+                                        border: "1px solid rgba(239,68,68,0.30)",
+                                        backdropFilter: "blur(12px)",
+                                    }}
+                                >
+                                    <AlertCircle size={14} style={{ color: "#ef4444", flexShrink: 0, marginTop: "1px" }} />
+                                    <p className="text-xs leading-snug" style={{ color: "var(--color-text-primary)" }}>
+                                        Create a few categories first before importing a statement.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
 
                         {/* Add Expense — icon only on mobile */}
                         <button

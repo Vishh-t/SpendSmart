@@ -12,4 +12,11 @@ export async function signUpUser(name, username, password, email, monthlyBudget,
     return response.data;
 }
 
+export async function googleAuth(code, redirectUri) {
+    const response = await api.post(
+        `/users/auth/google?code=${encodeURIComponent(code)}&redirectUri=${encodeURIComponent(redirectUri)}`
+    );
+    return response.data;
+}
+
 

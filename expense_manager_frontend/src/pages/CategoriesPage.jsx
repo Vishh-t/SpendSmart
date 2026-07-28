@@ -7,6 +7,7 @@ import { ErrorState, CategoriesSkeleton } from "../components/ui/PageState.jsx";
 import ConfirmModal from "../components/modals/ConfirmModal.jsx";
 import CategoryExpensesModal from "../components/modals/CategoryExpensesModal.jsx";
 import { useTheme } from "../context/ThemeContext.jsx";
+import { useData } from "../context/DataContext.jsx";
 
 const CATEGORY_ICONS = ["🏠","🛒","🚗","🎬","⚡","💊","✈️","📚","💻","🍔","👕","🎮","💰","🏋️","🎵"];
 const COLORS_DARK  = ["#4edea3","#60a5fa","#f59e0b","#a78bfa","#34d399","#fb923c","#f472b6","#38bdf8","#4ade80","#facc15","#c084fc","#2dd4bf"];
@@ -204,6 +205,7 @@ function AddCategoryCard({ onAdd }) {
 
 function CategoriesPage() {
     const { isDark } = useTheme();
+    const { triggerRefresh } = useData();
     const [categories,       setCategories]    = useState([]);
     const [financialSummary, setFinancialSummary] = useState(null);
     const [budgetSummary,    setBudgetSummary]  = useState([]);
@@ -233,6 +235,7 @@ function CategoriesPage() {
             await deleteCategory(categoryId); setConfirmDelete(null); setDeleteError("");
             const [cats, summary, budgets] = await Promise.all([getAllCategories(), getFinancialSummary(), getCategoryBudgetSummary().catch(() => [])]);
             setCategories(cats); setFinancialSummary(summary); setBudgetSummary(budgets ?? []);
+            triggerRefresh();
         } catch (err) {
             setConfirmDelete(null);
             if (err.response?.status === 409) setDeleteError(`Cannot delete "${confirmDelete?.name}" — it has expenses linked to it.`);
@@ -287,7 +290,7 @@ function CategoriesPage() {
                         colorIndex={index}
                     />
                 ))}
-                <AddCategoryCard onAdd={fetchData} />
+                <AddCategoryCard onAdd={() => { fetchData(); triggerRefresh(); }} />
             </div>
 
             {categories.length === 0 && (

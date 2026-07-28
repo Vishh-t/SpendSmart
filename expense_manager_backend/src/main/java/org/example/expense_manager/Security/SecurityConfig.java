@@ -29,7 +29,7 @@ public class SecurityConfig
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/users/signUp", "/users/login").permitAll()
+                        .requestMatchers("/users/signUp", "/users/login" ,"/users/auth/google").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();

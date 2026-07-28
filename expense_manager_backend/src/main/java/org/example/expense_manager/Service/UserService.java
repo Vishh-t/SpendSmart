@@ -63,7 +63,7 @@ public class UserService
     public LoginAndSignUpResponseDTO login(String username, String password)
     {
         User storedUser = repo.findByUsername(username);
-        if (storedUser == null || !encoder.matches(password, storedUser.getPassword()))
+        if (storedUser == null || storedUser.getPassword() == null || !encoder.matches(password, storedUser.getPassword()))
         {
             throw new InvalidCredentialsException("Invalid username or password");
 

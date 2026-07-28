@@ -7,18 +7,21 @@ import { AuthProvider } from "./context/AuthContext.jsx";
 import { ThemeProvider } from "./context/ThemeContext.jsx";
 import { DataProvider } from "./context/DataContext.jsx";
 import { Analytics } from "@vercel/analytics/react";
+import { GoogleOAuthProvider } from '@react-oauth/google';
 
 createRoot(document.getElementById('root')).render(
     <StrictMode>
-        <BrowserRouter>
-            <ThemeProvider>
-                <AuthProvider>
-                    <DataProvider>
-                        <App />
-                        <Analytics />
-                    </DataProvider>
-                </AuthProvider>
-            </ThemeProvider>
-        </BrowserRouter>
+        <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
+            <BrowserRouter>
+                <ThemeProvider>
+                    <AuthProvider>
+                        <DataProvider>
+                            <App />
+                            <Analytics />
+                        </DataProvider>
+                    </AuthProvider>
+                </ThemeProvider>
+            </BrowserRouter>
+        </GoogleOAuthProvider>
     </StrictMode>,
 )
