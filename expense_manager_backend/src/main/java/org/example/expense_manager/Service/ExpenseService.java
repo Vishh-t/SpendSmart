@@ -21,7 +21,6 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.Month;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -31,6 +30,7 @@ public class ExpenseService
 {
     private final ExpenseRepo repo;
     private final CategoryRepo categoryRepo;
+    private final SummaryService summaryService;
 
     private ExpenseResponseDTO convertToResponse(Expense expense)
     {
@@ -54,6 +54,7 @@ public class ExpenseService
         expense.setCategory(category);
         if (expense.getExpenseTimestamp() == null) expense.setExpenseTimestamp(LocalDateTime.now());
         repo.save(expense);
+        summaryService.evictUserCaches(user.getUserId());
         return convertToResponse(expense);
     }
 
@@ -103,6 +104,7 @@ public class ExpenseService
                 storedExpense.setExpenseTimestamp(expense.getExpenseTimestamp());
             }
             repo.save(storedExpense);
+            summaryService.evictUserCaches(user.getUserId());
             return convertToResponse(storedExpense);
         } else
         {
@@ -116,6 +118,7 @@ public class ExpenseService
         if (expense.getUser().equals(user))
         {
             repo.deleteById(expenseId);
+            summaryService.evictUserCaches(user.getUserId());
             return convertToResponse(expense);
         } else
         {
@@ -263,140 +266,17 @@ public class ExpenseService
 
     public AnnualSummaryDTO annualSummary(User user, int year)
     {
-        LocalDate start = LocalDate.of(year, 1, 1);
-        LocalDate end = LocalDate.of(year, 12, 31);
-
-        LocalDateTime startDate = start.atStartOfDay();
-        LocalDateTime endDate = end.atTime(LocalTime.MAX);
-
-        List<Expense> expenses = repo.findAllByUserAndExpenseTimestampBetween(user, startDate, endDate);
-        BigDecimal totalSpent = BigDecimal.ZERO;
-
-        Map<String, BigDecimal> monthlyBreakdown = new LinkedHashMap<>();
-        for (var m : Month.values())
-        {
-            monthlyBreakdown.put(m.name(), BigDecimal.ZERO);
-        }
-
-        for (var expense : expenses)
-        {
-            totalSpent = totalSpent.add(expense.getAmount());
-            String month = expense.getExpenseTimestamp().getMonth().name();
-            BigDecimal current = monthlyBreakdown.get(month);
-            monthlyBreakdown.put(month, current.add(expense.getAmount()));
-        }
-
-        Expense highestExpense = expenses.stream().max(Comparator.comparing(Expense::getAmount)).orElse(null);
-        Expense lowestExpense = expenses.stream().min(Comparator.comparing(Expense::getAmount)).orElse(null);
-        BigDecimal averageExpenseValue = expenses.isEmpty() ? BigDecimal.ZERO : totalSpent.divide(BigDecimal.valueOf(expenses.size()), 2, RoundingMode.HALF_UP);
-
-        Map<String, BigDecimal> monthlyPercentage = new HashMap<>();
-        final BigDecimal finalTotalSpent = totalSpent;
-
-        monthlyBreakdown.forEach((category, amount) ->
-        {
-            if (finalTotalSpent.compareTo(BigDecimal.ZERO) == 0) return;
-            BigDecimal percentage = amount.divide(finalTotalSpent, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
-            monthlyPercentage.put(category, percentage);
-        });
-
-        AnnualSummaryDTO summaryDTO = new AnnualSummaryDTO();
-        summaryDTO.setTotalSpent(totalSpent);
-        summaryDTO.setTransactionCount(expenses.size());
-        summaryDTO.setMonthlyBreakdown(monthlyBreakdown);
-        summaryDTO.setHighestExpense(highestExpense != null ? convertToResponse(highestExpense) : null);
-        summaryDTO.setLowestExpense(lowestExpense != null ? convertToResponse(lowestExpense) : null);
-        summaryDTO.setAverageExpenseValue(averageExpenseValue);
-        summaryDTO.setMonthlyPercentage(monthlyPercentage);
-
-        return summaryDTO;
+        return summaryService.annualSummary(user, year);
     }
 
     public BudgetStatusDTO checkBudgetStatus(User user)
     {
-        BigDecimal budget = user.getMonthlyBudget();
-        Month month = LocalDate.now().getMonth();
-        int year = LocalDate.now().getYear();
-        LocalDate start = LocalDate.of(year, month, 1);
-        LocalDateTime startDate = start.atStartOfDay();
-        LocalDateTime today = LocalDateTime.now();
-
-        List<Expense> expenses = repo.findAllByUserAndExpenseTimestampBetween(user, startDate, today);
-        BigDecimal spent = BigDecimal.ZERO;
-
-        for (var expense : expenses)
-        {
-            spent = spent.add(expense.getAmount());
-        }
-
-        BigDecimal remaining = budget.subtract(spent);
-        boolean warning = spent.compareTo(budget.multiply(new BigDecimal("0.8"))) >= 0;
-
-        BudgetStatusDTO budgetSummary = new BudgetStatusDTO();
-        budgetSummary.setBudget(budget);
-        budgetSummary.setRemaining(remaining);
-        budgetSummary.setSpent(spent);
-        budgetSummary.setWarning(warning);
-
-        return budgetSummary;
+        return summaryService.checkBudgetStatus(user);
     }
 
     public FinancialSummaryDTO financialSummary(User user)
     {
-        List<Expense> expenses = repo.findAllByUser(user);
-
-        int transactionCount = expenses.size();
-        BigDecimal totalSpent = BigDecimal.ZERO;
-        Map<String, BigDecimal> categoryBreakdown = new HashMap<>();
-
-        for (Expense expense : expenses)
-        {
-            totalSpent = totalSpent.add(expense.getAmount());
-            String categoryName = expense.getCategory().getCategoryName();
-            BigDecimal current = categoryBreakdown.getOrDefault(categoryName, BigDecimal.ZERO);
-            categoryBreakdown.put(categoryName, current.add(expense.getAmount()));
-        }
-
-        final BigDecimal finalTotalSpent = totalSpent;
-        Map<String, BigDecimal> categoryPercentage = new HashMap<>();
-
-        categoryBreakdown.forEach((category, amount) ->
-        {
-            if (finalTotalSpent.compareTo(BigDecimal.ZERO) == 0) return;
-            BigDecimal percentage = amount.divide(finalTotalSpent, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
-            categoryPercentage.put(category, percentage);
-        });
-
-        Expense highestExpense = expenses.stream().max(Comparator.comparing(Expense::getAmount)).orElse(null);
-        Expense lowestExpense = expenses.stream().min(Comparator.comparing(Expense::getAmount)).orElse(null);
-        BigDecimal averageExpenseValue = expenses.isEmpty() ? BigDecimal.ZERO : totalSpent.divide(BigDecimal.valueOf(expenses.size()), 2, RoundingMode.HALF_UP);
-
-        BigDecimal averageMonthlySpend = BigDecimal.ZERO;
-        if (!expenses.isEmpty())
-        {
-            Expense first = repo.findFirstByUserOrderByExpenseTimestampAsc(user);
-            Expense last  = repo.findFirstByUserOrderByExpenseTimestampDesc(user);
-            if (first != null && last != null)
-            {
-                long months = java.time.temporal.ChronoUnit.MONTHS.between(
-                        first.getExpenseTimestamp().toLocalDate().withDayOfMonth(1),
-                        last.getExpenseTimestamp().toLocalDate().withDayOfMonth(1)
-                ) + 1;
-                averageMonthlySpend = totalSpent.divide(BigDecimal.valueOf(months), 2, RoundingMode.HALF_UP);
-            }
-        }
-
-        FinancialSummaryDTO summaryDTO = new FinancialSummaryDTO();
-        summaryDTO.setTransactionCount(transactionCount);
-        summaryDTO.setCategoryBreakdown(categoryBreakdown);
-        summaryDTO.setTotalSpent(totalSpent);
-        summaryDTO.setHighestExpense(highestExpense != null ? convertToResponse(highestExpense) : null);
-        summaryDTO.setLowestExpense(lowestExpense != null ? convertToResponse(lowestExpense) : null);
-        summaryDTO.setAverageExpenseValue(averageExpenseValue);
-        summaryDTO.setAverageMonthlySpend(averageMonthlySpend);
-        summaryDTO.setCategoryPercentage(categoryPercentage);
-
-        return summaryDTO;
+        return summaryService.financialSummary(user);
     }
 
     public List<ExpenseResponseDTO> addBulkExpenses(User user, List<BulkExpenseItemDTO> items)
@@ -431,6 +311,7 @@ public class ExpenseService
         }
 
         repo.saveAll(expenses);
+        summaryService.evictUserCaches(user.getUserId());
         return responses;
     }
 
@@ -443,6 +324,7 @@ public class ExpenseService
             expense.setKeyword(newKeyword);
         }
         repo.saveAll(expenses);
+        summaryService.evictUserCaches(user.getUserId());
         return newKeyword;
     }
 
@@ -475,13 +357,6 @@ public class ExpenseService
 
     public DashboardSummaryDTO getDashboardSummary(User user, int year)
     {
-        FinancialSummaryDTO financial = financialSummary(user);
-        AnnualSummaryDTO annual = annualSummary(user, year);
-        BudgetStatusDTO budget = checkBudgetStatus(user);
-
-        Pageable recentPageable = PageRequest.of(0, 5, Sort.by("expenseTimestamp").descending());
-        List<ExpenseResponseDTO> recent = repo.findAllByUser(user, recentPageable).map(this::convertToResponse).getContent();
-
-        return new DashboardSummaryDTO(financial, budget, annual, recent);
+        return summaryService.getDashboardSummary(user, year);
     }
 }
