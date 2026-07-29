@@ -9,6 +9,8 @@ import org.example.expense_manager.Exceptions.AlreadyExistsException;
 import org.example.expense_manager.Exceptions.InvalidCredentialsException;
 import org.example.expense_manager.Repository.UserRepo;
 import org.example.expense_manager.Security.JwtUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -18,6 +20,8 @@ import java.math.BigDecimal;
 @RequiredArgsConstructor
 public class UserService
 {
+    private static final Logger log = LoggerFactory.getLogger(UserService.class);
+
     private final UserRepo repo;
     private final PasswordEncoder encoder;
     private final JwtUtil jwtUtil;
@@ -27,11 +31,13 @@ public class UserService
 
         if (repo.existsByUsername(signUpDto.getUsername()))
         {
+            log.warn("Signup rejected — username already taken: {}", signUpDto.getUsername());
             throw new AlreadyExistsException("Username already exists , a unique Username recommended");
         }
 
         if (repo.existsByEmail(signUpDto.getEmail()))
         {
+            log.warn("Signup rejected — email already registered: {}", signUpDto.getEmail());
             throw new AlreadyExistsException("Email already exists , a unique emailId is recommended");
         }
 
@@ -51,6 +57,7 @@ public class UserService
 
         User savedUser = repo.save(user);
         String authToken = jwtUtil.generateToken(savedUser.getUsername());
+        log.info("New user signed up: username={}, userId={}", savedUser.getUsername(), savedUser.getUserId());
 
         LoginAndSignUpResponseDTO signUpResponseDto = new LoginAndSignUpResponseDTO();
         signUpResponseDto.setUserId(savedUser.getUserId());
@@ -65,10 +72,12 @@ public class UserService
         User storedUser = repo.findByUsername(username);
         if (storedUser == null || storedUser.getPassword() == null || !encoder.matches(password, storedUser.getPassword()))
         {
+            log.warn("Failed login attempt for username: {}", username);
             throw new InvalidCredentialsException("Invalid username or password");
 
         }
 
+        log.info("User logged in: username={}", storedUser.getUsername());
         LoginAndSignUpResponseDTO loginResponseDTO = new LoginAndSignUpResponseDTO();
         String authToken = jwtUtil.generateToken(storedUser.getUsername());
         loginResponseDTO.setUserId(storedUser.getUserId());

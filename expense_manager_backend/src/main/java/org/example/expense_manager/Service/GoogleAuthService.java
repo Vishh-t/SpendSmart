@@ -10,6 +10,8 @@ import org.example.expense_manager.DTO.ControllerDTOs.LoginAndSignUpResponseDTO;
 import org.example.expense_manager.Entity.User;
 import org.example.expense_manager.Repository.UserRepo;
 import org.example.expense_manager.Security.JwtUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +23,8 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class GoogleAuthService {
+
+    private static final Logger log = LoggerFactory.getLogger(GoogleAuthService.class);
 
     private final UserRepo userRepo;
     private final JwtUtil jwtUtil;
@@ -58,6 +62,7 @@ public class GoogleAuthService {
         if (existingByGoogleId.isPresent()) {
 
             user = existingByGoogleId.get();
+            log.info("Google login — existing linked account: username={}", user.getUsername());
         } else {
 
             Optional<User> existingByEmail = userRepo.findByEmail(email);
@@ -66,6 +71,7 @@ public class GoogleAuthService {
                 user = existingByEmail.get();
                 user.setGoogleId(googleId);
                 user = userRepo.save(user);
+                log.info("Google account linked to existing manual account: username={}, email={}", user.getUsername(), email);
             } else {
 
                 user = new User();
@@ -76,6 +82,7 @@ public class GoogleAuthService {
                 user.setPassword(null);
                 user.setMonthlyBudget(BigDecimal.valueOf(5000));
                 user = userRepo.save(user);
+                log.info("New user created via Google sign-in: username={}, email={}", user.getUsername(), email);
             }
         }
 

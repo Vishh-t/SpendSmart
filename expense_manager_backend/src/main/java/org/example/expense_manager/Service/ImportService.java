@@ -39,6 +39,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ImportService
 {
+    private static final Logger log = LoggerFactory.getLogger(ImportService.class);
+
     @Value("${gemini.api.key}")
     private String api_key;
 
@@ -597,9 +599,15 @@ public class ImportService
             user.setLastImportDate(today);
         }
         if (user.getImportCountToday() >= 3)
+        {
+            log.warn("Import rejected — daily limit reached: username={}", user.getUsername());
             throw new AppException("Daily import limit reached (3/day). Try again tomorrow.");
+        }
         if (user.getImportCountMonth() >= 10)
+        {
+            log.warn("Import rejected — monthly limit reached: username={}", user.getUsername());
             throw new AppException("Monthly import limit reached (10/month). Resets next month.");
+        }
 
         userRepo.save(user);
 
@@ -613,6 +621,7 @@ public class ImportService
         }
 
         String jobId = jobStore.createJob();
+        log.info("Import job started: jobId={}, username={}, fileSize={} bytes", jobId, user.getUsername(), file.getSize());
         Thread.ofVirtual().start(() -> runParseJob(jobId, user, strippedText, categories, includeCredits));
         return jobId;
     }
@@ -661,10 +670,12 @@ public class ImportService
             user.setImportCountMonth(user.getImportCountMonth() + 1);
             userRepo.save(user);
 
+            log.info("Import job completed: jobId={}, username={}, transactionsExtracted={}", jobId, user.getUsername(), parsedStatements.size());
             jobStore.markDone(jobId, parsedStatements);
         }
         catch (Exception e)
         {
+            log.error("Import job failed: jobId={}, username={}", jobId, user.getUsername(), e);
             jobStore.markFailed(jobId, e.getMessage() != null ? e.getMessage() : "Failed to parse statement");
         }
     }

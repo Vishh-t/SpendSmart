@@ -19,6 +19,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 public class SecurityConfig
 {
     private final JwtFilter jwtFilter;
+    private final RateLimitFilter rateLimitFilter;
     private final CorsConfigurationSource corsConfigurationSource;
 
     @Bean
@@ -31,7 +32,8 @@ public class SecurityConfig
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/users/signUp", "/users/login" ,"/users/auth/google").permitAll()
                         .anyRequest().authenticated())
-                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(jwtFilter, RateLimitFilter.class)
                 .build();
 
 
