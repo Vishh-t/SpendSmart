@@ -1,12 +1,23 @@
+import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import LoginPage from "./pages/LoginPage.jsx";
-import ExpensesPage from "./pages/ExpensesPage.jsx";
-import DashBoard from "./pages/DashBoard.jsx";
-import ProfilePage from "./pages/ProfilePage.jsx";
-import CategoriesPage from "./pages/CategoriesPage.jsx";
-import InsightsPage from "./pages/InsightsPage.jsx";
 import Layout from "./components/layout/Layout.jsx";
 import ProtectedRoute from "./components/layout/ProtectedRoute.jsx";
+
+const ExpensesPage   = lazy(() => import("./pages/ExpensesPage.jsx"));
+const DashBoard      = lazy(() => import("./pages/DashBoard.jsx"));
+const ProfilePage    = lazy(() => import("./pages/ProfilePage.jsx"));
+const CategoriesPage = lazy(() => import("./pages/CategoriesPage.jsx"));
+const InsightsPage   = lazy(() => import("./pages/InsightsPage.jsx"));
+
+function PageLoader() {
+    return (
+        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ width: "32px", height: "32px", border: "3px solid rgba(78,222,163,0.2)", borderTopColor: "var(--color-primary)", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+    );
+}
 
 function NotFound() {
     return (
@@ -21,16 +32,18 @@ function NotFound() {
 
 function App() {
     return (
-        <Routes>
-            <Route path="/" element={<Navigate to="/login" />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/dashboard"  element={<ProtectedRoute><Layout><DashBoard /></Layout></ProtectedRoute>} />
-            <Route path="/expenses"   element={<ProtectedRoute><Layout><ExpensesPage /></Layout></ProtectedRoute>} />
-            <Route path="/categories" element={<ProtectedRoute><Layout><CategoriesPage /></Layout></ProtectedRoute>} />
-            <Route path="/insights"   element={<ProtectedRoute><Layout><InsightsPage /></Layout></ProtectedRoute>} />
-            <Route path="/profile"    element={<ProtectedRoute><Layout><ProfilePage /></Layout></ProtectedRoute>} />
-            <Route path="*" element={<NotFound />} />
-        </Routes>
+        <Suspense fallback={<PageLoader />}>
+            <Routes>
+                <Route path="/" element={<Navigate to="/login" />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/dashboard"  element={<ProtectedRoute><Layout><DashBoard /></Layout></ProtectedRoute>} />
+                <Route path="/expenses"   element={<ProtectedRoute><Layout><ExpensesPage /></Layout></ProtectedRoute>} />
+                <Route path="/categories" element={<ProtectedRoute><Layout><CategoriesPage /></Layout></ProtectedRoute>} />
+                <Route path="/insights"   element={<ProtectedRoute><Layout><InsightsPage /></Layout></ProtectedRoute>} />
+                <Route path="/profile"    element={<ProtectedRoute><Layout><ProfilePage /></Layout></ProtectedRoute>} />
+                <Route path="*" element={<NotFound />} />
+            </Routes>
+        </Suspense>
     );
 }
 
