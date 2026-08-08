@@ -33,7 +33,7 @@ class ProfileScreen extends StatelessWidget {
               child: ListTile(
                 leading: const Icon(Icons.account_balance_wallet, color: AppTheme.primary),
                 title: const Text('Monthly Budget'),
-                trailing: Text('₹${user?.monthlyBudget.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                trailing: Text('₹${user?.monthlyBudget?.toStringAsFixed(0) ?? 'Not set'}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               ),
             ),
             const Spacer(),

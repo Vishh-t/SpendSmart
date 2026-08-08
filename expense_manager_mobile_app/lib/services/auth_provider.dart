@@ -47,7 +47,9 @@ class AuthProvider extends ChangeNotifier {
       });
       final token = res.data['token'];
       await _storage.write(key: 'token', value: token);
-      _currentUser = User.fromJson(res.data);
+      // fetch full user info since login response only returns token + username
+      final userRes = await _apiClient.client.get('/users/');
+      _currentUser = User.fromJson(userRes.data);
       _isAuthenticated = true;
       notifyListeners();
       return true;
@@ -68,7 +70,9 @@ class AuthProvider extends ChangeNotifier {
       });
       final token = res.data['token'];
       await _storage.write(key: 'token', value: token);
-      _currentUser = User.fromJson(res.data);
+      // fetch full user info since signup response only returns token + username
+      final userRes = await _apiClient.client.get('/users/');
+      _currentUser = User.fromJson(userRes.data);
       _isAuthenticated = true;
       notifyListeners();
       return true;

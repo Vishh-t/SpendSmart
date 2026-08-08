@@ -3,9 +3,9 @@ class User {
   final String username;
   final String name;
   final String email;
-  final double monthlyBudget;
+  final double? monthlyBudget;
 
-  User({this.userId, required this.username, required this.name, required this.email, required this.monthlyBudget});
+  User({this.userId, required this.username, required this.name, required this.email, this.monthlyBudget});
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(

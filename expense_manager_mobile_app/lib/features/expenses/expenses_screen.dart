@@ -63,6 +63,49 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     final descCtrl = TextEditingController();
     int? selectedCategoryId;
 
+    Future<void> showCreateCategoryDialog(StateSetter setModalState) async {
+      final nameCtrl = TextEditingController();
+      await showDialog(
+        context: context,
+        builder: (dCtx) => AlertDialog(
+          backgroundColor: AppTheme.surface,
+          title: const Text('New Category'),
+          content: TextField(
+            controller: nameCtrl,
+            autofocus: true,
+            decoration: const InputDecoration(labelText: 'Category Name'),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () async {
+                if (nameCtrl.text.trim().isEmpty) return;
+                try {
+                  final res = await _apiClient.client.post('/category/add', data: {'categoryName': nameCtrl.text.trim()});
+                  final newCat = res.data;
+                  if (dCtx.mounted) Navigator.pop(dCtx);
+                  // refresh categories list and auto-select the new one
+                  final catRes = await _apiClient.client.get('/category/');
+                  setModalState(() {
+                    _categories = catRes.data ?? [];
+                    selectedCategoryId = newCat['categoryId'] as int?;
+                  });
+                } catch (_) {
+                  if (dCtx.mounted) Navigator.pop(dCtx);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Category already exists or failed to create.')),
+                    );
+                  }
+                }
+              },
+              child: const Text('Create'),
+            ),
+          ],
+        ),
+      );
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -85,20 +128,36 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 value: selectedCategoryId,
                 decoration: const InputDecoration(labelText: 'Category'),
                 dropdownColor: AppTheme.surface,
-                items: _categories.map((cat) {
-                  return DropdownMenuItem<int>(
+                items: [
+                  ..._categories.map((cat) => DropdownMenuItem<int>(
                     value: cat['categoryId'] as int,
                     child: Text(cat['categoryName']),
-                  );
-                }).toList(),
-                onChanged: (val) => setModalState(() => selectedCategoryId = val),
+                  )),
+                  const DropdownMenuItem<int>(
+                    value: -1,
+                    child: Row(
+                      children: [
+                        Icon(Icons.add_circle_outline, size: 16, color: AppTheme.primary),
+                        SizedBox(width: 8),
+                        Text('Create new category', style: TextStyle(color: AppTheme.primary)),
+                      ],
+                    ),
+                  ),
+                ],
+                onChanged: (val) async {
+                  if (val == -1) {
+                    await showCreateCategoryDialog(setModalState);
+                  } else {
+                    setModalState(() => selectedCategoryId = val);
+                  }
+                },
               ),
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () async {
-                  if (amountCtrl.text.isEmpty || selectedCategoryId == null) return;
+                  if (amountCtrl.text.isEmpty || selectedCategoryId == null || selectedCategoryId == -1) return;
                   await _apiClient.client.post(
-                    '/expense/$selectedCategoryId',
+                    '/expense/?categoryId=$selectedCategoryId',
                     data: {
                       'amount': double.parse(amountCtrl.text),
                       'description': descCtrl.text,
@@ -142,6 +201,17 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
+                : _expenses.isEmpty
+                ? const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.receipt_long_outlined, size: 64, color: AppTheme.textSecondary),
+                        SizedBox(height: 16),
+                        Text('No expenses yet', style: TextStyle(color: AppTheme.textSecondary, fontSize: 16)),
+                      ],
+                    ),
+                  )
                 : ListView.builder(
               itemCount: _expenses.length,
               padding: const EdgeInsets.symmetric(horizontal: 16),
