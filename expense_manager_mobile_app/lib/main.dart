@@ -4,14 +4,18 @@ import 'package:provider/provider.dart';
 import 'core/theme.dart';
 import 'router.dart';
 import 'services/auth_provider.dart';
+import 'services/refresh_signal.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   final authProvider = AuthProvider();
   final appRouter = createRouter(authProvider);
   runApp(
-    ChangeNotifierProvider.value(
-      value: authProvider,
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: authProvider),
+        ChangeNotifierProvider(create: (_) => RefreshSignal()),
+      ],
       child: ExpenzoApp(router: appRouter),
     ),
   );
