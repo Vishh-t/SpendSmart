@@ -14,7 +14,7 @@ public class CacheConfig
     public CaffeineCacheManager cacheManager()
     {
         CaffeineCacheManager manager = new CaffeineCacheManager(
-                "financialSummary", "budgetStatus", "dashboardSummary"
+                "financialSummary", "budgetStatus", "dashboardSummary" , "annualSummary"
         );
         manager.setCaffeine(
                 Caffeine.newBuilder()
