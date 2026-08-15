@@ -59,6 +59,12 @@ public class ImportService
     @Value("${gemini.api.fallback4.url}")
     private String api_fallback4_url;
 
+    @Value("${gemini.api.fallback5.url}")
+    private String api_fallback5_url;
+
+    @Value("${gemini.api.fallback6.url}")
+    private String api_fallback6_url;
+
     final private ExpenseRepo expenseRepo;
     final private CategoryRepo categoryRepo;
     final private UserCategoryMappingRepo userCategoryMappingRepo;
@@ -109,7 +115,7 @@ public class ImportService
                 "date": "2026-05-18",
                 "time": "14:35",
                 "description": "UPI payment to Swiggy",
-                "vendor": "swiggy",
+                "vendor": "Swiggy",
                 "categoryId": 4,
                 "confidenceScore": 96.5
               }
@@ -163,7 +169,7 @@ public class ImportService
             - remove company suffixes
             
             ALWAYS REMOVE WORDS:
-            pvt, ltd, private, limited, payment, upi, neft, imps, rtgs, pos, ecom, debit, card, txn, ref, transfer, india, bangalore, mumbai, delhi, hyderabad
+            pvt, ltd, private, limited, payment, upi, neft, imps, RTGS, pos, ecom, debit, card, txn, ref, transfer, India, Bangalore, Mumbai, Delhi, Hyderabad
             
             CONSISTENCY RULE - these must all produce the same vendor:
             "SWIGGY INSTAMART" → "swiggy"
@@ -172,7 +178,7 @@ public class ImportService
             "ECOM/RAZORPAY/SWIGGY/123" → "swiggy"
             
             GOOD vendor examples:
-            "swiggy", "netflix", "amazon", "zomato", "phonepe", "bigbasket", "uber", "ola"
+            "swiggy", "netflix", "amazon", "Zomato", "phonepe", "bigbasket", "Uber", "ola"
             
             BAD vendor examples:
             "SWIGGY LIMITED", "UPI-SWIGGY-ICICI", "PAYMENT TO AMAZON", "RAZORPAY SWIGGY"
@@ -352,11 +358,13 @@ public class ImportService
     private String callGeminiWithFallback(HttpEntity<Map<String, Object>> entity)
     {
         List<String[]> models = List.of(
-                new String[]{api_url,           "gemini-3.5-flash (primary)"},
-                new String[]{api_fallback1_url, "gemini-3-flash-preview (fallback 1)"},
-                new String[]{api_fallback2_url, "gemini-3.1-flash-lite (fallback 2)"},
-                new String[]{api_fallback3_url, "gemini-2.5-flash (fallback 3)"},
-                new String[]{api_fallback4_url, "gemini-2.5-flash-lite (fallback 4)"}
+                new String[]{api_url , "Gemini-3.7-flash (Primary)"},
+                new String[]{api_fallback1_url, "Gemini-3.6-flash (fallback 1) "},
+                new String[]{api_fallback2_url, "Gemini-3.5-flash (fallback 2)"},
+                new String[]{api_fallback3_url, "Gemini-3-flash-preview (fallback 3)"},
+                new String[]{api_fallback4_url, "Gemini-3.1-flash-lite (fallback 4)"},
+                new String[]{api_fallback5_url, "Gemini-2.5-flash (fallback 5)"},
+                new String[]{api_fallback6_url, "Gemini-2.5-flash-lite (fallback 6)"}
         );
 
         Exception lastException = null;
