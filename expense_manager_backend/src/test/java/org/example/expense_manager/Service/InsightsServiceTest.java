@@ -58,7 +58,7 @@ class InsightsServiceTest {
         List<AnomalyDTO> anomalies = insightsService.anomalyDetector(testUser, 4, 2026);
 
         assertThat(anomalies).hasSize(1);
-        AnomalyDTO anomaly = anomalies.get(0);
+        AnomalyDTO anomaly = anomalies.getFirst();
         assertThat(anomaly.getCategoryName()).isEqualTo("Food");
         assertThat(anomaly.getSeverity()).isEqualTo("Unusual");
         assertThat(anomaly.getDeviationMultiple()).isGreaterThan(new BigDecimal("3"));
@@ -76,8 +76,8 @@ class InsightsServiceTest {
         List<AnomalyDTO> anomalies = insightsService.anomalyDetector(testUser, 4, 2026);
 
         assertThat(anomalies).hasSize(1);
-        assertThat(anomalies.get(0).isInsufficientData()).isTrue();
-        assertThat(anomalies.get(0).getSeverity()).isEqualTo("INSUFFICIENT_DATA");
+        assertThat(anomalies.getFirst().isInsufficientData()).isTrue();
+        assertThat(anomalies.getFirst().getSeverity()).isEqualTo("INSUFFICIENT_DATA");
     }
 
     @Test
@@ -108,7 +108,7 @@ class InsightsServiceTest {
         List<MerchantDTO> leaderboard = insightsService.merchantLeaderboard(testUser);
 
         assertThat(leaderboard).hasSize(3);
-        assertThat(leaderboard.get(0).getKeyword()).isEqualTo("swiggy");
+        assertThat(leaderboard.getFirst().getKeyword()).isEqualTo("swiggy");
         assertThat(leaderboard.get(0).getRank()).isEqualTo(1);
         assertThat(leaderboard.get(0).getTotalSpent()).isEqualByComparingTo("8000");
         assertThat(leaderboard.get(1).getKeyword()).isEqualTo("uber");
@@ -145,7 +145,7 @@ class InsightsServiceTest {
         List<RecurringExpenseDTO> subscriptions = insightsService.subscriptionTracker(testUser);
 
         assertThat(subscriptions).hasSize(1);
-        RecurringExpenseDTO sub = subscriptions.get(0);
+        RecurringExpenseDTO sub = subscriptions.getFirst();
         assertThat(sub.getKeyword()).isEqualTo("netflix");
         assertThat(sub.getAverageAmount()).isEqualByComparingTo("499");
         // Average gap: (31 + 28 + 31) / 3 = 30
@@ -192,7 +192,7 @@ class InsightsServiceTest {
             expense("Shopping", 1000, startOfMonth.plusDays(5))
         );
         
-        when(expenseRepo.findAllByUserAndExpenseTimestampBetween(eq(testUser), eq(startOfMonth), eq(LocalDateTime.now())))
+        when(expenseRepo.findAllByUserAndExpenseTimestampBetween(eq(testUser), eq(startOfMonth), any(LocalDateTime.class)))
             .thenReturn(expenses);
 
         BurnRateDTO burnRate = insightsService.dailyBurnRate(testUser);
@@ -250,7 +250,7 @@ class InsightsServiceTest {
             expense("Transport", 1000, LocalDateTime.of(2026, 1, 10, 12, 0)) // Saturday
         );
         
-        
+
         when(expenseRepo.findAllByUserAndExpenseTimestampBetween(eq(testUser), any(LocalDateTime.class), any(LocalDateTime.class)))
             .thenReturn(expenses);
 
