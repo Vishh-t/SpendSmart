@@ -302,7 +302,7 @@ public class ImportService
                 .replaceAll("[A-Z]{4}0[A-Z0-9]{6}", "[REMOVED]");
     }
 
-    private String normalizeKeyword(String rawVendor)
+    String normalizeKeyword(String rawVendor)
     {
         return rawVendor.toLowerCase()
                 .replaceAll("\\b(pvt|ltd|private|limited|india|payment|services|enterprise|enterprises)\\b", "")
