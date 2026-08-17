@@ -42,11 +42,35 @@ jobs:
             echo "Stopping existing service..."
             sudo systemctl stop expense-manager || true
 
-            echo "Backing up old JAR..."
-            mv ${{ env.APP_DIR }}/${{ env.JAR_NAME }} ${{ env.APP_DIR }}/${{ env.JAR_NAME }}.backup || true
-
             echo "Creating app directory..."
-            mkdir -p ${{ env.APP_DIR }}
+            mkdir -p /home/ubuntu/expense-manager
+
+            echo "Checking if systemd service exists..."
+            if [ ! -f /etc/systemd/system/expense-manager.service ]; then
+              echo "Creating systemd service..."
+              sudo tee /etc/systemd/system/expense-manager.service > /dev/null <<'SVC_EOF'
+[Unit]
+Description=Expense Manager
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/expense-manager
+ExecStart=/usr/bin/java -jar Expense_Manager-0.0.1-SNAPSHOT.jar
+Restart=on-failure
+RestartSec=10
+Environment=SPRING_PROFILES_ACTIVE=prod
+
+[Install]
+WantedBy=multi-user.target
+SVC_EOF
+              sudo systemctl daemon-reload
+              sudo systemctl enable expense-manager
+            fi
+
+            echo "Backing up old JAR..."
+            mv /home/ubuntu/expense-manager/Expense_Manager-0.0.1-SNAPSHOT.jar /home/ubuntu/expense-manager/Expense_Manager-0.0.1-SNAPSHOT.jar.backup || true
 
             echo "JAR built successfully, ready for deploy"
 
@@ -57,7 +81,7 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           source: "expense_manager_backend/target/Expense_Manager-0.0.1-SNAPSHOT.jar"
-          target: ${{ env.APP_DIR }}/
+          target: /home/ubuntu/expense-manager/
           strip_components: 3
 
       - name: Restart service on EC2
@@ -67,29 +91,7 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            cd ${{ env.APP_DIR }}
-            if ! sudo test -f /etc/systemd/system/expense-manager.service; then
-              echo "Creating expense-manager systemd service..."
-              cat <<'EOF' | sed 's/^  //' | sudo tee /etc/systemd/system/expense-manager.service > /dev/null
-              [Unit]
-              Description=Expense Manager Spring Boot Application
-              After=network.target
-
-              [Service]
-              Type=simple
-              User=${{ secrets.EC2_USER }}
-              WorkingDirectory=${{ env.APP_DIR }}
-              ExecStart=/usr/bin/java -jar ${{ env.APP_DIR }}/${{ env.JAR_NAME }}
-              SuccessExitStatus=143
-              Restart=always
-              RestartSec=10
-
-              [Install]
-              WantedBy=multi-user.target
-              EOF
-            fi
-            sudo systemctl daemon-reload
-            sudo systemctl enable expense-manager
+            cd /home/ubuntu/expense-manager
             echo "Starting expense-manager service..."
             sudo systemctl start expense-manager
             sleep 3
