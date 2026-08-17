@@ -1,0 +1,71 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches: [main]
+
+env:
+  JAR_NAME: expense-manager-0.0.1-SNAPSHOT.jar
+  EC2_USER: ubuntu
+  EC2_HOST: ${{ secrets.EC2_HOST }}
+  EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+  APP_DIR: /home/ubuntu/expense-manager
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build JAR
+        run: ./mvnw clean package -DskipTests
+
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+            echo "Stopping existing service..."
+            sudo systemctl stop expense-manager || true
+
+            echo "Backing up old JAR..."
+            mv ${{ env.APP_DIR }}/${{ env.JAR_NAME }} ${{ env.APP_DIR }}/${{ env.JAR_NAME }}.backup || true
+
+            echo "Creating app directory..."
+            mkdir -p ${{ env.APP_DIR }}
+
+            echo "JAR built successfully, ready for deploy"
+
+      - name: Copy JAR to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "expense_manager_backend/target/*.jar"
+          target: ${{ env.APP_DIR }}/
+          strip_components: 2
+
+      - name: Restart service on EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ${{ env.APP_DIR }}
+            echo "Starting expense-manager service..."
+            sudo systemctl start expense-manager
+            sleep 3
+            sudo systemctl status expense-manager --no-pager
