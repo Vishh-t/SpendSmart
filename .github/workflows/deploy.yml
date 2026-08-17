@@ -6,9 +6,6 @@ on:
 
 env:
   JAR_NAME: Expense_Manager-0.0.1-SNAPSHOT.jar
-  EC2_USER: ubuntu
-  EC2_HOST: ${{ secrets.EC2_HOST }}
-  EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
   APP_DIR: /home/ubuntu/expense-manager
 
 jobs:
@@ -26,12 +23,11 @@ jobs:
           cache: maven
 
       - name: Build JAR
-        working-directory: expense_manager_backend
         run: |
-          chmod +x ./mvnw
-          ./mvnw clean package -DskipTests
+          chmod +x expense_manager_backend/mvnw
+          cd expense_manager_backend && ./mvnw clean package -DskipTests
 
-      - name: Deploy to EC2 via SSH
+      - name: Prepare EC2 Environment
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -41,38 +37,12 @@ jobs:
             set -e
             echo "Stopping existing service..."
             sudo systemctl stop expense-manager || true
-
-            echo "Creating app directory..."
-            mkdir -p /home/ubuntu/expense-manager
-
-            echo "Checking if systemd service exists..."
-            if [ ! -f /etc/systemd/system/expense-manager.service ]; then
-              echo "Creating systemd service..."
-              sudo tee /etc/systemd/system/expense-manager.service > /dev/null <<'EOF'
-[Unit]
-Description=Expense Manager
-After=network.target
-
-[Service]
-Type=simple
-User=ubuntu
-WorkingDirectory=/home/ubuntu/expense-manager
-ExecStart=/usr/bin/java -jar Expense_Manager-0.0.1-SNAPSHOT.jar
-Restart=on-failure
-RestartSec=10
-Environment=SPRING_PROFILES_ACTIVE=prod
-
-[Install]
-WantedBy=multi-user.target
-EOF
-              sudo systemctl daemon-reload
-              sudo systemctl enable expense-manager
-            fi
-
+            
+            echo "Creating app directory if not exists..."
+            mkdir -p ${{ env.APP_DIR }}
+            
             echo "Backing up old JAR..."
-            mv /home/ubuntu/expense-manager/Expense_Manager-0.0.1-SNAPSHOT.jar /home/ubuntu/expense-manager/Expense_Manager-0.0.1-SNAPSHOT.jar.backup || true
-
-            echo "JAR built successfully, ready for deploy"
+            mv ${{ env.APP_DIR }}/${{ env.JAR_NAME }} ${{ env.APP_DIR }}/${{ env.JAR_NAME }}.backup || true
 
       - name: Copy JAR to EC2
         uses: appleboy/scp-action@v0.1.7
@@ -80,9 +50,9 @@ EOF
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "expense_manager_backend/target/Expense_Manager-0.0.1-SNAPSHOT.jar"
-          target: /home/ubuntu/expense-manager/
-          strip_components: 3
+          source: "expense_manager_backend/target/${{ env.JAR_NAME }}"
+          target: ${{ env.APP_DIR }}/
+          strip_components: 2
 
       - name: Restart service on EC2
         uses: appleboy/ssh-action@v1.2.0
@@ -91,7 +61,7 @@ EOF
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            cd /home/ubuntu/expense-manager
+            cd ${{ env.APP_DIR }}
             echo "Starting expense-manager service..."
             sudo systemctl start expense-manager
             sleep 3
