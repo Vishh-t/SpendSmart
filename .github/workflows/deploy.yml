@@ -48,7 +48,7 @@ jobs:
             echo "Checking if systemd service exists..."
             if [ ! -f /etc/systemd/system/expense-manager.service ]; then
               echo "Creating systemd service..."
-              sudo tee /etc/systemd/system/expense-manager.service > /dev/null <<'SVC_EOF'
+              sudo tee /etc/systemd/system/expense-manager.service > /dev/null <<'EOF'
 [Unit]
 Description=Expense Manager
 After=network.target
@@ -64,7 +64,7 @@ Environment=SPRING_PROFILES_ACTIVE=prod
 
 [Install]
 WantedBy=multi-user.target
-SVC_EOF
+EOF
               sudo systemctl daemon-reload
               sudo systemctl enable expense-manager
             fi
