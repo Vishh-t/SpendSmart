@@ -6,6 +6,9 @@ on:
 
 env:
   JAR_NAME: Expense_Manager-0.0.1-SNAPSHOT.jar
+  EC2_USER: ubuntu
+  EC2_HOST: ${{ secrets.EC2_HOST }}
+  EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
   APP_DIR: /home/ubuntu/expense-manager
 
 jobs:
@@ -23,11 +26,12 @@ jobs:
           cache: maven
 
       - name: Build JAR
+        working-directory: expense_manager_backend
         run: |
-          chmod +x expense_manager_backend/mvnw
-          cd expense_manager_backend && ./mvnw clean package -DskipTests
+          chmod +x ./mvnw
+          ./mvnw clean package -DskipTests
 
-      - name: Prepare EC2 Environment
+      - name: Deploy to EC2 via SSH (setup service + deploy)
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -37,12 +41,61 @@ jobs:
             set -e
             echo "Stopping existing service..."
             sudo systemctl stop expense-manager || true
-            
-            echo "Creating app directory if not exists..."
-            mkdir -p ${{ env.APP_DIR }}
-            
+
+            echo "Creating app directory..."
+            mkdir -p /home/ubuntu/expense-manager
+
+            echo "Checking if systemd service exists..."
+            if [ ! -f /etc/systemd/system/expense-manager.service ]; then
+              echo "Creating systemd service..."
+              sudo tee /etc/systemd/system/expense-manager.service > /dev/null <<'EOF'
+[Unit]
+Description=Expense Manager Spring Boot Application
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/expense-manager
+ExecStart=/usr/bin/java -jar Expense_Manager-0.0.1-SNAPSHOT.jar
+Restart=always
+RestartSec=10
+Environment="SPRING_DATASOURCE_URL=jdbc:mysql://localhost:3306/manager?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true"
+Environment="SPRING_DATASOURCE_USERNAME=root"
+Environment="SPRING_DATASOURCE_PASSWORD=vishesh_261021"
+Environment="SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT=org.hibernate.dialect.MySQLDialect"
+Environment="JWT_SECRET=aCx9qHtQpLpZ6UhxsBanxT1YWprn9uY7bxN0SlRRtGc="
+Environment="GEMINI_API_KEY=AIzaSyBXgg8PYdxXQWy-IkCZtIIcYIVD23wOP9k"
+Environment="GEMINI_API_URL=https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent"
+Environment="GEMINI_API_FALLBACK1_URL=https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent"
+Environment="GEMINI_API_FALLBACK2_URL=https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent"
+Environment="GEMINI_API_FALLBACK3_URL=https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent"
+Environment="GEMINI_API_FALLBACK4_URL=https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent"
+Environment="GEMINI_API_FALLBACK5_URL=https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+Environment="GEMINI_API_FALLBACK6_URL=https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent"
+Environment="FRONTEND_URL=https://spend-smart-one-beta.vercel.app"
+Environment="GOOGLE_CLIENT_ID=320503108747-kaj07e30p15b3rr27vv6qlc2ni97585c.apps.googleusercontent.com"
+Environment="GOOGLE_CLIENT_SECRET=G0CSPX-57m0cDedX92GaodpIe3gwV1F_9CR"
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/expense-manager
+ExecStart=/usr/bin/java -jar Expense_Manager-0.0.1-SNAPSHOT.jar
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+              sudo systemctl daemon-reload
+              sudo systemctl enable expense-manager
+            fi
+
             echo "Backing up old JAR..."
-            mv ${{ env.APP_DIR }}/${{ env.JAR_NAME }} ${{ env.APP_DIR }}/${{ env.JAR_NAME }}.backup || true
+            mv /home/ubuntu/expense-manager/Expense_Manager-0.0.1-SNAPSHOT.jar /home/ubuntu/expense-manager/Expense_Manager-0.0.1-SNAPSHOT.jar.backup || true
+
+            echo "JAR built successfully, ready for deploy"
 
       - name: Copy JAR to EC2
         uses: appleboy/scp-action@v0.1.7
@@ -50,9 +103,9 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "expense_manager_backend/target/${{ env.JAR_NAME }}"
-          target: ${{ env.APP_DIR }}/
-          strip_components: 2
+          source: "expense_manager_backend/target/Expense_Manager-0.0.1-SNAPSHOT.jar"
+          target: /home/ubuntu/expense-manager/
+          strip_components: 3
 
       - name: Restart service on EC2
         uses: appleboy/ssh-action@v1.2.0
@@ -61,7 +114,7 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            cd ${{ env.APP_DIR }}
+            cd /home/ubuntu/expense-manager
             echo "Starting expense-manager service..."
             sudo systemctl start expense-manager
             sleep 3
