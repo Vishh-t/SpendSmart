@@ -68,6 +68,28 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd ${{ env.APP_DIR }}
+            if ! sudo test -f /etc/systemd/system/expense-manager.service; then
+              echo "Creating expense-manager systemd service..."
+              cat <<'EOF' | sed 's/^  //' | sudo tee /etc/systemd/system/expense-manager.service > /dev/null
+              [Unit]
+              Description=Expense Manager Spring Boot Application
+              After=network.target
+
+              [Service]
+              Type=simple
+              User=${{ secrets.EC2_USER }}
+              WorkingDirectory=${{ env.APP_DIR }}
+              ExecStart=/usr/bin/java -jar ${{ env.APP_DIR }}/${{ env.JAR_NAME }}
+              SuccessExitStatus=143
+              Restart=always
+              RestartSec=10
+
+              [Install]
+              WantedBy=multi-user.target
+              EOF
+            fi
+            sudo systemctl daemon-reload
+            sudo systemctl enable expense-manager
             echo "Starting expense-manager service..."
             sudo systemctl start expense-manager
             sleep 3
