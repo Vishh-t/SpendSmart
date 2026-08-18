@@ -21,7 +21,9 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 import org.slf4j.Logger;
@@ -33,6 +35,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 import java.util.stream.Collectors;
 
 @Service
@@ -58,6 +63,12 @@ public class ImportService
 
     @Value("${gemini.api.fallback4.url}")
     private String api_fallback4_url;
+
+    @Value("${gemini.api.fallback5.url}")
+    private String api_fallback5_url;
+
+    @Value("${gemini.api.fallback6.url}")
+    private String api_fallback6_url;
 
     final private ExpenseRepo expenseRepo;
     final private CategoryRepo categoryRepo;
@@ -109,7 +120,7 @@ public class ImportService
                 "date": "2026-05-18",
                 "time": "14:35",
                 "description": "UPI payment to Swiggy",
-                "vendor": "swiggy",
+                "vendor": "Swiggy",
                 "categoryId": 4,
                 "confidenceScore": 96.5
               }
@@ -163,7 +174,7 @@ public class ImportService
             - remove company suffixes
             
             ALWAYS REMOVE WORDS:
-            pvt, ltd, private, limited, payment, upi, neft, imps, rtgs, pos, ecom, debit, card, txn, ref, transfer, india, bangalore, mumbai, delhi, hyderabad
+            pvt, ltd, private, limited, payment, upi, neft, imps, RTGS, pos, ecom, debit, card, txn, ref, transfer, India, Bangalore, Mumbai, Delhi, Hyderabad
             
             CONSISTENCY RULE - these must all produce the same vendor:
             "SWIGGY INSTAMART" → "swiggy"
@@ -172,7 +183,7 @@ public class ImportService
             "ECOM/RAZORPAY/SWIGGY/123" → "swiggy"
             
             GOOD vendor examples:
-            "swiggy", "netflix", "amazon", "zomato", "phonepe", "bigbasket", "uber", "ola"
+            "swiggy", "netflix", "amazon", "Zomato", "phonepe", "bigbasket", "Uber", "ola"
             
             BAD vendor examples:
             "SWIGGY LIMITED", "UPI-SWIGGY-ICICI", "PAYMENT TO AMAZON", "RAZORPAY SWIGGY"
@@ -349,43 +360,78 @@ public class ImportService
         throw new AppException("Gemini retry loop exhausted unexpectedly (" + modelLabel + ").");
     }
 
-    private String callGeminiWithFallback(HttpEntity<Map<String, Object>> entity)
+    private static final int MAX_RETRIES_PER_MODEL = 2;
+    private static final long RETRY_BACKOFF_MS = 1000;
+
+    private String callGeminiWithFallback(HttpEntity<Map<String, Object>> entity, int startIndex)
     {
         List<String[]> models = List.of(
-                new String[]{api_url,           "gemini-3.5-flash (primary)"},
-                new String[]{api_fallback1_url, "gemini-3-flash-preview (fallback 1)"},
-                new String[]{api_fallback2_url, "gemini-3.1-flash-lite (fallback 2)"},
-                new String[]{api_fallback3_url, "gemini-2.5-flash (fallback 3)"},
-                new String[]{api_fallback4_url, "gemini-2.5-flash-lite (fallback 4)"}
+                new String[]{api_url,           "Gemini-3.7-flash"},
+                new String[]{api_fallback1_url, "Gemini-3.6-flash"},
+                new String[]{api_fallback2_url, "Gemini-3.5-flash"},
+                new String[]{api_fallback3_url, "Gemini-3-flash-preview"},
+                new String[]{api_fallback4_url, "Gemini-3.1-flash-lite"},
+                new String[]{api_fallback5_url, "Gemini-2.5-flash"},
+                new String[]{api_fallback6_url, "Gemini-2.5-flash-lite"}
         );
 
+        int modelCount = models.size();
         Exception lastException = null;
-        for (String[] model : models)
+
+        for (int offset = 0; offset < modelCount; offset++)
         {
-            try
+            int modelIndex = (startIndex + offset) % modelCount;
+            String url = models.get(modelIndex)[0];
+            String name = models.get(modelIndex)[1];
+
+            for (int attempt = 1; attempt <= MAX_RETRIES_PER_MODEL; attempt++)
             {
-                return tryUrl(model[0], entity, model[1]);
-            }
-            catch (HttpServerErrorException e)
-            {
-                int code = e.getStatusCode().value();
-                if (code == 503 || code == 529 || code == 429)
+                try
+                {
+                    return tryUrl(url, entity, name);
+                }
+                catch (HttpClientErrorException e)
+                {
+                    if (e.getStatusCode().value() == 429)
+                    {
+                        lastException = e;
+                        break;
+                    }
+                    throw new AppException("Gemini rejected the request on " + name + ": " + e.getMessage());
+                }
+                catch (HttpServerErrorException e)
                 {
                     lastException = e;
+                    int code = e.getStatusCode().value();
+                    if ((code == 503 || code == 529) && attempt < MAX_RETRIES_PER_MODEL)
+                    {
+                        sleepBackoff(attempt);
+                        continue;
+                    }
+                    break;
                 }
-                else
+                catch (ResourceAccessException e)
                 {
-                    throw new AppException("Gemini API error: " + e.getMessage());
+                    lastException = e;
+                    if (attempt < MAX_RETRIES_PER_MODEL)
+                    {
+                        sleepBackoff(attempt);
+                        continue;
+                    }
+                    break;
                 }
-            }
-            catch (AppException e)
-            {
-                lastException = e;
             }
         }
-        throw new AppException("All Gemini models are currently overloaded. Please try again in a few minutes.");
+
+        String reason = lastException != null ? lastException.getMessage() : "unknown error";
+        throw new AppException("All Gemini models are currently unavailable. Please try again in a few minutes. (" + reason + ")");
     }
 
+    private void sleepBackoff(int attempt)
+    {
+        try { Thread.sleep(RETRY_BACKOFF_MS * attempt); }
+        catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+    }
     private String callGemini(List<Category> categoryList, String statementText, boolean includeCredits)
     {
         StringBuilder categories = new StringBuilder();
@@ -400,68 +446,89 @@ public class ImportService
             throw new AppException("PDF too large — maximum 50 pages allowed. Please upload a shorter statement.");
         }
 
+        List<String> chunks = new ArrayList<>();
         StringBuilder text = new StringBuilder();
-        StringBuilder allResponses = new StringBuilder();
-        ObjectMapper mapper = new ObjectMapper();
-
-        for (int i = 0; i < pages.length; i = i + 3)
+        for (int i = 0; i < pages.length; i += 3)
         {
             for (int j = i; j < i + 3 && j < pages.length; j++)
             {
                 text.append(pages[j]);
             }
-
-            String finalPrompt = GEMINI_PROMPT
-                    .replace("{categoryList}", categories.toString())
-                    .replace("{includeCredits}", String.valueOf(includeCredits))
-                    .replace("{statementText}", text);
-
-            Map<String, Object> part = new HashMap<>();
-            part.put("text", finalPrompt);
-
-            Map<String, Object> content = new HashMap<>();
-            content.put("parts", List.of(part));
-
-            Map<String, Object> generationConfig = new HashMap<>();
-            generationConfig.put("maxOutputTokens", 65536);
-
-            Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("contents", List.of(content));
-            requestBody.put("generationConfig", generationConfig);
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-
-            String responseBody = callGeminiWithFallback(entity);
-
-            try
-            {
-                JsonNode root = mapper.readTree(responseBody);
-                JsonNode candidates = root.path("candidates");
-                if (candidates.isMissingNode() || !candidates.isArray() || candidates.isEmpty())
-                    throw new AppException("Gemini returned an empty response for pages " + (i + 1) + "–" + Math.min(i + 3, pages.length));
-                JsonNode parts = candidates.get(0).path("content").path("parts");
-                if (parts.isMissingNode() || !parts.isArray() || parts.isEmpty())
-                    throw new AppException("Gemini returned incomplete content for pages " + (i + 1) + "–" + Math.min(i + 3, pages.length));
-                JsonNode textNode = parts.get(0).path("text");
-                if (textNode.isMissingNode() || !textNode.isTextual() || textNode.textValue().isBlank())
-                    throw new AppException("Gemini returned no text for pages " + (i + 1) + "–" + Math.min(i + 3, pages.length));
-                allResponses.append(textNode.textValue());
-            }
-            catch (AppException e)
-            {
-                throw e;
-            }
-            catch (Exception e)
-            {
-                throw new AppException("Gemini response parsing failed on pages " + (i + 1) + "–" + Math.min(i + 3, pages.length) + ": " + e.getMessage());
-            }
-
+            chunks.add(text.toString());
             text.setLength(0);
         }
 
+        Semaphore rateLimiter = new Semaphore(5);
+        ObjectMapper mapper = new ObjectMapper();
+        List<CompletableFuture<String>> futures = new ArrayList<>();
+
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor())
+        {
+            for (int idx = 0; idx < chunks.size(); idx++)
+            {
+                final int chunkIndex = idx;
+                final String chunkText = chunks.get(idx);
+
+                CompletableFuture<String> future = CompletableFuture.supplyAsync(() -> {
+                    try
+                    {
+                        rateLimiter.acquire();
+
+                        String finalPrompt = GEMINI_PROMPT
+                                .replace("{categoryList}", categories.toString())
+                                .replace("{includeCredits}", String.valueOf(includeCredits))
+                                .replace("{statementText}", chunkText);
+
+                        Map<String, Object> part = new HashMap<>();
+                        part.put("text", finalPrompt);
+                        Map<String, Object> content = new HashMap<>();
+                        content.put("parts", List.of(part));
+                        Map<String, Object> generationConfig = new HashMap<>();
+                        generationConfig.put("maxOutputTokens", 65536);
+                        Map<String, Object> requestBody = new HashMap<>();
+                        requestBody.put("contents", List.of(content));
+                        requestBody.put("generationConfig", generationConfig);
+
+                        HttpHeaders headers = new HttpHeaders();
+                        headers.setContentType(MediaType.APPLICATION_JSON);
+                        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+                        // <-- this is the line that connects to the retry/rotation logic
+                        String responseBody = callGeminiWithFallback(entity, chunkIndex);
+
+                        JsonNode root = mapper.readTree(responseBody);
+                        JsonNode candidates = root.path("candidates");
+                        int startPage = chunkIndex * 3 + 1;
+                        int endPage = Math.min(startPage + 2, pages.length);
+                        if (candidates.isMissingNode() || !candidates.isArray() || candidates.isEmpty())
+                            throw new AppException("Gemini returned an empty response for pages " + startPage + "–" + endPage);
+                        JsonNode parts = candidates.get(0).path("content").path("parts");
+                        if (parts.isMissingNode() || !parts.isArray() || parts.isEmpty())
+                            throw new AppException("Gemini returned incomplete content for pages " + startPage + "–" + endPage);
+                        JsonNode textNode = parts.get(0).path("text");
+                        if (textNode.isMissingNode() || !textNode.isTextual() || textNode.textValue().isBlank())
+                            throw new AppException("Gemini returned no text for pages " + startPage + "–" + endPage);
+
+                        return textNode.textValue();
+                    }
+                    catch (AppException e) { throw e; }
+                    catch (Exception e) { throw new AppException("Gemini response parsing failed: " + e.getMessage()); }
+                    finally { rateLimiter.release(); }
+                }, executor);
+
+                futures.add(future);
+            }
+
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+        }
+        catch (java.util.concurrent.CompletionException e)
+        {
+            if (e.getCause() instanceof AppException ae) throw ae;
+            throw new AppException("Import failed: " + e.getCause().getMessage());
+        }
+
+        StringBuilder allResponses = new StringBuilder();
+        for (var future : futures) allResponses.append(future.join());
         return allResponses.toString();
     }
 
