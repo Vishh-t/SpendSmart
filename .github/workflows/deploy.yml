@@ -43,10 +43,8 @@ jobs:
             echo "Creating app directory..."
             mkdir -p /home/ubuntu/expense-manager
 
-            echo "Checking if systemd service exists..."
-            if [ ! -f /etc/systemd/system/expense-manager.service ]; then
-              echo "Creating systemd service..."
-              sudo tee /etc/systemd/system/expense-manager.service > /dev/null <<'EOF'
+            echo "Updating systemd service..."
+            sudo tee /etc/systemd/system/expense-manager.service > /dev/null <<'EOF'
             [Unit]
             Description=Expense Manager Spring Boot Application
             After=network.target
@@ -60,6 +58,12 @@ jobs:
             Environment="JWT_SECRET=${{ secrets.JWT_SECRET }}"
             Environment="GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}"
             Environment="GEMINI_API_URL=https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent"
+            Environment="GEMINI_API_FALLBACK1_URL=https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent"
+            Environment="GEMINI_API_FALLBACK2_URL=https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent"
+            Environment="GEMINI_API_FALLBACK3_URL=https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent"
+            Environment="GEMINI_API_FALLBACK4_URL=https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent"
+            Environment="GEMINI_API_FALLBACK5_URL=https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+            Environment="GEMINI_API_FALLBACK6_URL=https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent"
             Environment="FRONTEND_URL=https://spend-smart-one-beta.vercel.app"
             Environment="GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}"
             Environment="GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}"
@@ -78,9 +82,8 @@ jobs:
             [Install]
             WantedBy=multi-user.target
             EOF
-              sudo systemctl daemon-reload
-              sudo systemctl enable expense-manager
-            fi
+            sudo systemctl daemon-reload
+            sudo systemctl enable expense-manager
 
             echo "Backing up old JAR..."
             mv /home/ubuntu/expense-manager/Expense_Manager-0.0.1-SNAPSHOT.jar /home/ubuntu/expense-manager/Expense_Manager-0.0.1-SNAPSHOT.jar.backup || true
